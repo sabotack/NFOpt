@@ -9,63 +9,42 @@ def printSolution():
             print(f"{v.varName}: {v.x}")
     elif m.status == GRB.INFEASIBLE:
         print('Model is infeasible')
-    
 
-def main(ratios):
+
+def main(totalLinkUtilization):
 
     # --- TRAFFIC OVER LINKS ---
     trafficOverLinks = {}
-    trafficOverLinks['AB'] = 0
-    trafficOverLinks['AC'] = 0
-    trafficOverLinks['BD'] = 0
-    trafficOverLinks['BE'] = 0
-    trafficOverLinks['CF'] = 0
-    trafficOverLinks['DG'] = 0
-    trafficOverLinks['EG'] = 0
-    trafficOverLinks['FG'] = 0
 
-    # --- AVG Link Utilization for each link ---
-    linkUtilization['AB'] = 0
-    linkUtilization['AC'] = 0
-    linkUtilization['BD'] = 0
-    linkUtilization['BE'] = 0
-    linkUtilization['CF'] = 0
-    linkUtilization['DG'] = 0
-    linkUtilization['EG'] = 0
-    linkUtilization['FG'] = 0
-
-
-    avgLinkUtilization = 0
     # traffic calculation over links
-    for path in flows['AG']:
-        for link in flows['AG'][path]:
-            #print('Link: ' + link)
-            #print(f"Ratio: {ratios['AG']}")
-            trafficOverLinks[link] +=  traffic['AG'] * ratios['AG'][path]
+    for flow in flows:
+        for path in flows[flow]:
+            for link in flows[flow][path]:
+                if link in trafficOverLinks:
+                    trafficOverLinks[link] +=  traffic[flow] * ratios[flow][path]
+                else :
+                    trafficOverLinks[link] = traffic[flow] * ratios[flow][path]
+
 
     # link utilization calculation
     for link in trafficOverLinks:
-        linkUtilization[link] = trafficOverLinks[link] / linksCapacity[link] * 100
+        if link in linkUtilization :
+            linkUtilization[link] += trafficOverLinks[link] / linksCapacity[link] * 100
+        else :
+            linkUtilization[link] = trafficOverLinks[link] / linksCapacity[link] * 100
         #print(f"Link: {link} has {linkUtilization[link]}% link util")
 
     # avg link utilization calculation
     for link in linkUtilization:
-        avgLinkUtilization += linkUtilization[link]
+        totalLinkUtilization += linkUtilization[link]
 
-    avgLinkUtilization = avgLinkUtilization / len(linkUtilization)
+    avgLinkUtilization = totalLinkUtilization / len(linkUtilization)
 
     return avgLinkUtilization
 
 # --- temp ---
 linkUtilization = {}
-linkUtilization['AB'] = 0
-linkUtilization['AC'] = 0
-linkUtilization['BD'] = 0
-linkUtilization['BE'] = 0
-linkUtilization['CF'] = 0
-linkUtilization['DG'] = 0
-linkUtilization['EG'] = 0
-linkUtilization['FG'] = 0
+totalLinkUtilization = 0
 
 # --- LINKS ---
 linksCapacity = {}
@@ -80,7 +59,6 @@ linksCapacity['FG'] = 1500
 
 # --- PATHS ---
 flows = {}
-
 flows['AG'] = {}
 flows['AG'][0] = ['AB', 'BE', 'EG']
 flows['AG'][1] = ['AB', 'BD', 'DG']
@@ -99,31 +77,32 @@ for path in flows['AG']:
     ratios['AG'][path] = 1/len(flows['AG'])
 
 
-avgLinkUtilization = main(ratios)
+avgLinkUtilization = main(totalLinkUtilization)
 
 m = gp.Model('utilization_optimization')
 
-for r in ratios['AG']:
-    ratios['AG'][r] = m.addVar(vtype=GRB.CONTINUOUS, name=f"ratio_{r}")
-    print(f"Ratio: {ratios['AG'][r]}")
+for flow in flows:
+    for r in ratios[flow]:
+        ratios[flow][r] = m.addVar(vtype=GRB.CONTINUOUS, name=f"ratio_{r}")
+        print(f"Ratio: {ratios[flow][r]}")
 
 
 # Objective function
 m.ModelSense = GRB.MINIMIZE
-m.setObjective(sum(linkUtilization.values()), GRB.MINIMIZE)
+m.setObjective(totalLinkUtilization, GRB.MINIMIZE)
 
 # Constraints
 for link in linkUtilization:
     m.addConstr(linkUtilization[link] <= 100, name=f"linkUtil_{link}")
 
-m.addConstr(sum(ratios['AG'].values()) == 1, name="sumRatios")
+for flow in flows:
+    m.addConstr(sum(ratios[flow].values()) == 1, name="sumRatios")
 
 m.write("test.lp")
 
 m.optimize()
 
 printSolution()
-
 
 print(f"Initial Avg link utilization: {avgLinkUtilization}%")
 
@@ -136,5 +115,3 @@ for r in ratios['AG']:
 #print(f"New Ratios: {newRatios}")
 
 #print(f"New Avg link utilization: {main(newRatios)}%")
-
-
