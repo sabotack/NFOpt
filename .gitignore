@@ -172,3 +172,9 @@ pyrightconfig.json
 
 # gurobi
 *.lp
+
+# dataset
+dataset-week/
+dataset-week.tar
+internal-dataset-week/
+internal-dataset-week.tar

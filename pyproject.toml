@@ -2,8 +2,13 @@
 name = "p6"
 version = "0.1.0"
 description = ""
-authors = ["sabotack <sabotack.2001@gmail.com>"]
 readme = "README.md"
+authors = [
+        "sabotack <akhora21@student.aau.dk>",
+        "sBejer <sbejer21@student.aau.dk>",
+        "EmilML <emla21@student.aau.dk>",
+        "ViktorPlatz <vplatz21@student.aau.dk>"
+    ]
 
 [tool.poetry.dependencies]
 python = "^3.10"

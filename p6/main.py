@@ -1,9 +1,14 @@
+import sys
+import logging
 import gurobipy as gp
 from gurobipy import GRB
 
+from p6.utils import network as nwUtils
+
+logger = logging.getLogger(__name__)
+
 # --- FUNCTIONS ---
 def printSolution(m):
-
     if m.status == GRB.OPTIMAL:
         print('Optimal solution found')
         for v in m.getVars():
@@ -12,30 +17,19 @@ def printSolution(m):
         print('Model is infeasible')
 
 
-def calcAvgLinkUtil(flows, traffic, linksCapacity, ratios):
+def calcUtil(flows, traffic, linksCapacity, ratios):
+    # Initialization
     totalLinkUtilization = 0
     linkUtilization = {}
 
-    # --- TRAFFIC OVER LINKS ---
-    trafficOverLinks = {}
-
-    # traffic calculation over links
+    # Calculate linkUtil for all links in all flows
     for flow in flows:
         for path in flows[flow]:
             for link in flows[flow][path]:
-                if link in trafficOverLinks:
-                    trafficOverLinks[link] +=  traffic[flow] * ratios[flow][path]
+                if link in linkUtilization:
+                    linkUtilization[link] +=  traffic[flow] * ratios[flow][path] / linksCapacity[link] * 100
                 else :
-                    trafficOverLinks[link] = traffic[flow] * ratios[flow][path]
-
-
-    # link utilization calculation
-    for link in trafficOverLinks:
-        if link in linkUtilization :
-            linkUtilization[link] += trafficOverLinks[link] / linksCapacity[link] * 100
-        else :
-            linkUtilization[link] = trafficOverLinks[link] / linksCapacity[link] * 100
-        #print(f"Link: {link} has {linkUtilization[link]}% link util")
+                    linkUtilization[link] = traffic[flow] * ratios[flow][path] / linksCapacity[link] * 100
 
     # avg link utilization calculation
     for link in linkUtilization:
@@ -44,8 +38,23 @@ def calcAvgLinkUtil(flows, traffic, linksCapacity, ratios):
     avgLinkUtilization = totalLinkUtilization / len(linkUtilization)
 
     return (totalLinkUtilization, avgLinkUtilization, linkUtilization)
+    
 
 def main():
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    
+    logging.basicConfig(filename='p6.log', level=logging.DEBUG)
+    logger.addHandler(handler)
+    
+    logger.info('Started')
+    logger.info('Finished')
+    logger.debug('TESTESTTESTETSETEST')
+
+
+
     # --- LINKS ---
     linksCapacity = {}
     linksCapacity['AB'] = 600
@@ -54,15 +63,15 @@ def main():
     linksCapacity['BE'] = 600
     linksCapacity['CF'] = 1500
     linksCapacity['DG'] = 400
-    linksCapacity['EG'] = 400
+    linksCapacity['EG'] = 600
     linksCapacity['FG'] = 1500
 
     # --- PATHS ---
     flows = {}
     flows['AG'] = {}
-    flows['AG'][0] = ['AB', 'BE', 'EG']
-    flows['AG'][1] = ['AB', 'BD', 'DG']
-    flows['AG'][2] = ['AC', 'CF', 'FG']
+    flows['AG'][0] = ['A', 'B', 'D', 'G']
+    flows['AG'][1] = ['A', 'B', 'E', 'G']
+    flows['AG'][2] = ['A', 'C', 'F', 'G']
 
     # --- TRAFFIC ---
     traffic = {}
@@ -70,48 +79,28 @@ def main():
 
     # --- RATIOS ---
 
-    ratios = {}
-    ratios['AG'] = {}
+    
+    routersHash = nwUtils.getRoutersHashFromFlows(flows)
+    
+    links = {}
+    nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
+    nwUtils.printRouterHash(routersHash)
+    
 
-    for path in flows['AG']:
-        ratios['AG'][path] = 1/len(flows['AG'])
+    print("\n-------------------------------")
+
+    currentRouter = routersHash['G']
+
+    while(currentRouter.name != 'A'):
+        print(currentRouter.name)
+        currentRouter = currentRouter.ingress[list(currentRouter.ingress.keys())[len(currentRouter.ingress)-1]]
+    
+    print(currentRouter.name)
 
 
-    (totalLinkUtilization, avgLinkUtilization, linkUtilization) = calcAvgLinkUtil(flows, traffic, linksCapacity, ratios)
-
-    m = gp.Model('utilization_optimization')
-
-    for flow in flows:
-        for r in ratios[flow]:
-            ratios[flow][r] = m.addVar(vtype=GRB.CONTINUOUS, name=f"ratio_{r}")
-            print(f"Ratio: {ratios[flow][r]}")
+    for linkKey in links:
+        print(f"Link: {linkKey} - Capacity: {links[linkKey].capacity} - Ratio: {links[linkKey].trafficRatio}")
 
 
-    # Objective function
-    m.ModelSense = GRB.MINIMIZE
-    m.setObjective(totalLinkUtilization, GRB.MINIMIZE)
-
-    # Constraints
-    for link in linkUtilization:
-        m.addConstr(linkUtilization[link] <= 100, name=f"linkUtil_{link}")
-
-    for flow in flows:
-        m.addConstr(sum(ratios[flow].values()) == 1, name="sumRatios")
-
-    m.write("test.lp")
-
-    m.optimize()
-
-    printSolution(m)
-
-    print(f"Initial Avg link utilization: {avgLinkUtilization}%")
-
-    # --- calculate new Ratios ---
-    newRatios = {}
-    newRatios['AG'] = {}
-    for r in ratios['AG']:
-        newRatios['AG'][r] = float(ratios['AG'][r].x)
-
-    #print(f"New Ratios: {newRatios}")
-
-    #print(f"New Avg link utilization: {calcAvgLinkUtil(newRatios)}%")
+if __name__ == '__main__':
+    main()
