@@ -1,11 +1,10 @@
-import sys
-import logging
 import gurobipy as gp
 from gurobipy import GRB
 
 from p6.utils import network as nwUtils
+from p6.utils import log
+logger = log.setupCustomLogger(__name__)
 
-logger = logging.getLogger(__name__)
 
 # --- FUNCTIONS ---
 def printSolution(m):
@@ -40,20 +39,8 @@ def calcUtil(flows, traffic, linksCapacity, ratios):
     return (totalLinkUtilization, avgLinkUtilization, linkUtilization)
     
 
-def main():
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    
-    logging.basicConfig(filename='p6.log', level=logging.DEBUG)
-    logger.addHandler(handler)
-    
+def main():    
     logger.info('Started')
-    logger.info('Finished')
-    logger.debug('TESTESTTESTETSETEST')
-
-
 
     # --- LINKS ---
     linksCapacity = {}
@@ -79,28 +66,27 @@ def main():
 
     # --- RATIOS ---
 
-    
+    logger.info('Populating routers hash from flows')
     routersHash = nwUtils.getRoutersHashFromFlows(flows)
     
+    logger.info('Calculating ratios')
     links = {}
     nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
-    nwUtils.printRouterHash(routersHash)
+    # nwUtils.printRouterHash(routersHash)
     
 
-    print("\n-------------------------------")
+    # print("\n-------------------------------")
 
-    currentRouter = routersHash['G']
+    # currentRouter = routersHash['G']
 
-    while(currentRouter.name != 'A'):
-        print(currentRouter.name)
-        currentRouter = currentRouter.ingress[list(currentRouter.ingress.keys())[len(currentRouter.ingress)-1]]
+    # while(currentRouter.name != 'A'):
+    #     print(currentRouter.name)
+    #     currentRouter = currentRouter.ingress[list(currentRouter.ingress.keys())[len(currentRouter.ingress)-1]]
     
-    print(currentRouter.name)
+    # print(currentRouter.name)
 
 
-    for linkKey in links:
-        print(f"Link: {linkKey} - Capacity: {links[linkKey].capacity} - Ratio: {links[linkKey].trafficRatio}")
+    # for linkKey in links:
+    #     print(f"Link: {linkKey} - Capacity: {links[linkKey].capacity} - Ratio: {links[linkKey].trafficRatio}")
 
-
-if __name__ == '__main__':
-    main()
+    logger.info('Finished')
