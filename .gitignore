@@ -176,6 +176,7 @@ pyrightconfig.json
 # dataset
 dataset-week/
 dataset-week.tar
+internal-dataset/
 internal-dataset-week/
 internal-dataset-week.tar
 

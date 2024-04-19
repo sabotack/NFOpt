@@ -14,6 +14,7 @@ authors = [
 python = "^3.10"
 gurobipy = "^11.0.1"
 pandas = "^2.2.1"
+pyarrow = "^15.0.2"
 
 [tool.poetry.scripts]
 start = "p6.main:main"

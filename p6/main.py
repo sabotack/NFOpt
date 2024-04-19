@@ -1,10 +1,13 @@
 import gurobipy as gp
+
 from gurobipy import GRB
 
+from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
+import pandas as pd
 
 # --- FUNCTIONS ---
 def printSolution(m):
@@ -38,40 +41,61 @@ def calcUtil(flows, traffic, linksCapacity, ratios):
 
     return (totalLinkUtilization, avgLinkUtilization, linkUtilization)
     
+DATA_DAY = 2
 
-def main():    
+def main():
     logger.info('Started')
 
-    # --- LINKS ---
-    linksCapacity = {}
-    linksCapacity['AB'] = 600
-    linksCapacity['AC'] = 2000
-    linksCapacity['BD'] = 500
-    linksCapacity['BE'] = 600
-    linksCapacity['CF'] = 1500
-    linksCapacity['DG'] = 400
-    linksCapacity['EG'] = 600
-    linksCapacity['FG'] = 1500
+    flows = dataUtils.readFlows(DATA_DAY)
+    links = dataUtils.readLinks()
+    traffic = dataUtils.readTraffic(DATA_DAY)
 
-    # --- PATHS ---
-    flows = {}
-    flows['AG'] = {}
-    flows['AG'][0] = ['A', 'B', 'D', 'G']
-    flows['AG'][1] = ['A', 'B', 'E', 'G']
-    flows['AG'][2] = ['A', 'C', 'F', 'G']
+    for timestamp in flows:
+        for flow in flows[timestamp]:
+            routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
+            print(routers)
+            break
+        break
+   
 
-    # --- TRAFFIC ---
-    traffic = {}
-    traffic['AG'] = 100
+    # logger.debug(f"Flows: {len(flows)}")
 
-    # --- RATIOS ---
+    # for flow in flows:
+    #     print(f"Flow: {flow}")
+    #     for path in flows[flow]:
+    #         print(f"-: {path}")
+    #     print("\n")
 
-    logger.info('Populating routers hash from flows')
-    routersHash = nwUtils.getRoutersHashFromFlows(flows)
+    # # --- LINKS ---
+    # linksCapacity = {}
+    # linksCapacity['AB'] = 600
+    # linksCapacity['AC'] = 2000
+    # linksCapacity['BD'] = 500
+    # linksCapacity['BE'] = 600
+    # linksCapacity['CF'] = 1500
+    # linksCapacity['DG'] = 400
+    # linksCapacity['EG'] = 600
+    # linksCapacity['FG'] = 1500
+
+    # # --- PATHS ---
+    # flows = {}
+    # flows['AG'] = {}
+    # flows['AG'][0] = ['A', 'B', 'D', 'G']
+    # flows['AG'][1] = ['A', 'B', 'E', 'G']
+    # flows['AG'][2] = ['A', 'C', 'F', 'G']
+
+    # # --- TRAFFIC ---
+    # traffic = {}
+    # traffic['AG'] = 100
+
+    # # --- RATIOS ---
+
+    # logger.info('Populating routers hash from flows')
+    # routersHash = nwUtils.getRoutersHashFromFlows(flows)
     
-    logger.info('Calculating ratios')
-    links = {}
-    nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
+    # logger.info('Calculating ratios')
+    # links = {}
+    # nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
     # nwUtils.printRouterHash(routersHash)
     
 

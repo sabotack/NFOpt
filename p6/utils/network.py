@@ -1,28 +1,37 @@
 from p6.network_model import Router, Link
 
-def getRoutersHashFromFlows(flows):
-    routersHash = {}
-    for flow in flows:
-        for path in flows[flow]:
-            prevRouterName = ''
-            for routerName in reversed(flows[flow][path]):
-                if routerName not in routersHash:
-                    routersHash[routerName] = Router(routerName)
-                if prevRouterName != '':
-                    routersHash[prevRouterName].addConnection(routersHash[routerName], False)
-                    routersHash[routerName].addConnection(routersHash[prevRouterName], True)
+def getRoutersHashFromFlow(flow):
+    """
+    This function creates a hash of routers from a list of paths.
 
-                prevRouterName = routerName
+    ### Parameters
+    ----------
+    #### flow : list
+        A list of paths. Each path is a list of routers.
+    """
+
+    routersHash = {}
     
+    for path in flow:
+        prevRouterName = ''
+        for routerName in reversed(path):
+            if routerName not in routersHash:
+                routersHash[routerName] = Router(routerName)
+            if prevRouterName != '':
+                routersHash[prevRouterName].addConnection(routersHash[routerName], False)
+                routersHash[routerName].addConnection(routersHash[prevRouterName], True)
+
+            prevRouterName = routerName
+
     return routersHash
 
-def recCalcRatios(links, currentRouter, linkCapacities):
+def recCalcRatios(linksFlow, currentRouter, linkCapacities):
     for ingressKey in currentRouter.ingress:
         newLink = Link(currentRouter.ingress[ingressKey].name, currentRouter.name, 0)
         newLink.capacity = linkCapacities[newLink.name]
-        newLink.trafficRatio = internalCalcLinkRatio(links, currentRouter)
-        links[newLink.name] = newLink
-        recCalcRatios(links, currentRouter.ingress[ingressKey], linkCapacities)
+        newLink.trafficRatio = internalCalcLinkRatio(linksFlow, currentRouter)
+        linksFlow[newLink.name] = newLink
+        recCalcRatios(linksFlow, currentRouter.ingress[ingressKey], linkCapacities)
 
 def internalCalcLinkRatio(links, currentRouter):
     sumEgress = 0
