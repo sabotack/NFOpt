@@ -1,11 +1,20 @@
 from p6.network_model import Router, Link
 
-def getRoutersHashFromFlows(flow):
+def getRoutersHashFromFlow(flow):
+    """
+    This function creates a hash of routers from a list of paths.
+
+    ### Parameters
+    ----------
+    #### flow : list
+        A list of paths. Each path is a list of routers.
+    """
+
     routersHash = {}
     
-    for path in flow[flow]:
+    for path in flow:
         prevRouterName = ''
-        for routerName in reversed(flow[flow][path]):
+        for routerName in reversed(path):
             if routerName not in routersHash:
                 routersHash[routerName] = Router(routerName)
             if prevRouterName != '':
