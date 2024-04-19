@@ -17,7 +17,7 @@ pandas = "^2.2.1"
 pyarrow = "^15.0.2"
 
 [tool.poetry.scripts]
-start = "p6.data_reading:main"
+start = "p6.main:main"
 
 [build-system]
 requires = ["poetry-core"]
