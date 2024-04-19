@@ -4,8 +4,23 @@ import pandas as pd
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
-def readFlows(day): 
+def readFlows(day):
+    """
+    Reads the flow paths from the dataset and returns a dictionary with the flows grouped by timestamp and pathName.
+    The paths are also split into a list of paths.
+
+    ### Parameters:
+    ----------
+    #### day: int
+    The day of the dataset to read the flows from.
+
+    ### Returns:
+    ----------
+    A dictionary with the flows grouped by timestamp and pathName, with the paths split into a list of paths.
+    """
+
     try:
+        logger.info('Started reading paths...')
         dataFlows = pd.read_csv(f'internal-dataset/flow-path-day{day}.csv', names=['timestamp', 'pathStart', 'pathEnd', 'path'], engine='pyarrow')
         dataFlows['pathName'] = dataFlows['pathStart'] + dataFlows['pathEnd']
         logger.info('Finished reading paths, number of paths: ' + str(len(dataFlows.index)))
@@ -30,7 +45,16 @@ def readFlows(day):
 
 
 def readLinks():
+    """
+    Reads the links capacities from the dataset and returns a dictionary with the links indexed by linkName.
+
+    ### Returns:
+    ----------
+    A dictionary with the links indexed by linkName.
+    """
+
     try:
+        logger.info('Started reading links...')
         dataCapacity = pd.read_csv('internal-dataset/links.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
         dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
         dataCapacity.set_index('linkName', inplace=True)
@@ -44,7 +68,21 @@ def readLinks():
 
 
 def readTraffic(day):
+    """
+    Reads the traffic from the dataset and returns a dictionary with the traffic grouped by timestamp and flow.
+
+    ### Parameters:
+    ----------
+    #### day: int
+    The day of the dataset to read the traffic from.
+
+    ### Returns:
+    ----------
+    A dictionary with the traffic grouped by timestamp and flow.
+    """
+
     try:
+        logger.info('Started reading traffic...')
         dataTraffic = pd.read_csv(f'internal-dataset/flow-traffic-day{day}.csv', names=['timestamp', 'flowStart', 'flowEnd', 'traffic'], engine='pyarrow')
         dataTraffic['flow'] = dataTraffic['flowStart'] + dataTraffic['flowEnd']
         dataTraffic = dataTraffic.drop(['flowStart','flowEnd'], axis=1)
