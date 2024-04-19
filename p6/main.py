@@ -53,7 +53,21 @@ def main():
     for timestamp in flows:
         for flow in flows[timestamp]:
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
-            print(routers)
+
+            # for router in routers:
+            #     print(f'Router: {routers[router].name}')
+            #     for ingressKey in routers[router].ingress:
+            #         print(f'- In: {routers[router].ingress[ingressKey].name}')
+            #     for egressKey in routers[router].egress:
+            #         print(f'- Out: {routers[router].egress[egressKey].name}')
+
+            # print(routers)
+            linksFlow = nwUtils.getFlowLinks(routers, links)
+            
+            for linkKey in linksFlow:
+                print(f'Link: {linksFlow[linkKey].name}')
+                print(f'- Capacity: {linksFlow[linkKey].capacity}')
+                print(f'- TrafficRatio: {linksFlow[linkKey].trafficRatio}')
             break
         break
    
@@ -96,21 +110,3 @@ def main():
     # logger.info('Calculating ratios')
     # links = {}
     # nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
-    # nwUtils.printRouterHash(routersHash)
-    
-
-    # print("\n-------------------------------")
-
-    # currentRouter = routersHash['G']
-
-    # while(currentRouter.name != 'A'):
-    #     print(currentRouter.name)
-    #     currentRouter = currentRouter.ingress[list(currentRouter.ingress.keys())[len(currentRouter.ingress)-1]]
-    
-    # print(currentRouter.name)
-
-
-    # for linkKey in links:
-    #     print(f"Link: {linkKey} - Capacity: {links[linkKey].capacity} - Ratio: {links[linkKey].trafficRatio}")
-
-    logger.info('Finished')
