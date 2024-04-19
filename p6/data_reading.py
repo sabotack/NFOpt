@@ -44,19 +44,29 @@ def calcUtil(flows, traffic, linksCapacity, ratios):
 def main():    
     logger.info('Started')
 
-    dataFlows = pd.read_csv('internal-dataset/flow-path-day2.csv.gz', compression='gzip', names=['timestamp', 'pathStart', 'pathEnd', 'path'], nrows=2350000)
+    dataFlows = pd.read_csv('internal-dataset/flow-path-day2.csv.gz', compression='gzip', names=['timestamp', 'pathStart', 'pathEnd', 'path'])
     dataFlows['pathName'] = dataFlows['pathStart'] + dataFlows['pathEnd']
     
-    # dataFlows = dataFlows[dataFlows['timestamp'] == 'Tue 00:00:00']
+    dataFlows = dataFlows[dataFlows['timestamp'] == 'Tue 00:00:00']
 
-    # flows = {}
+    #Groups all paths by flow
+    flows = {}
+    for pathName, group in dataFlows.groupby('pathName'):
+        paths = [path[1:-1].split(';') for path in group['path']]
+        flows[pathName] = paths
 
-    # Groups all paths by flow
-    # for pathName, group in dataFlows.groupby('pathName'):
-    #     paths = [path[1:-1].split(';') for path in group['path']]
-    #     flows[pathName] = paths
 
-    #dataCapacity 
+    dataCapacity = pd.read_csv('internal-dataset/links.csv.gz', compression='gzip', names=['linkStart', 'linkEnd', 'capacity'], skiprows=1)
+    dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
+    dataCapacity.set_index('linkName', inplace=True)
+    links = dataCapacity.to_dict('index')
+    
+    dataTraffic = pd.read_csv('internal-dataset/flow-traffic-day2.csv.gz', compression='gzip', names=['timestamp', 'flowStart', 'flowEnd', 'traffic'])
+    dataTraffic = dataTraffic[dataTraffic['timestamp'] == 'Tue 00:00:00']
+    dataTraffic['flow'] = dataTraffic['flowStart'] + dataTraffic['flowEnd']
+    dataTraffic = dataTraffic.drop(['flowStart','flowEnd'], axis=1)
+    dataTraffic.set_index('flow', inplace=True)
+    traffic = dataTraffic.to_dict('index')
 
     # logger.debug(f"Flows: {len(flows)}")
 
