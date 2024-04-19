@@ -16,7 +16,7 @@ gurobipy = "^11.0.1"
 pandas = "^2.2.1"
 
 [tool.poetry.scripts]
-start = "p6.main:main"
+start = "p6.data_reading:main"
 
 [build-system]
 requires = ["poetry-core"]
