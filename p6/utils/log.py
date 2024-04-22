@@ -10,7 +10,7 @@ def setupCustomLogger(name):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d")
     log_filename = f"p6_{timestamp}.log"
-    logging.basicConfig(filename=log_filename, level=logging.DEBUG, format=format)
+    logging.basicConfig(filename=log_filename, level=logging.INFO, format=format)
 
 
     logger = logging.getLogger(name)

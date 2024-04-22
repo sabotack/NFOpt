@@ -4,6 +4,8 @@ import pandas as pd
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
+DATASET_PATH = 'internal-dataset'
+
 def readFlows(day):
     """
     Reads the flow paths from the dataset and returns a dictionary with the flows grouped by timestamp and pathName.
@@ -21,7 +23,7 @@ def readFlows(day):
 
     try:
         logger.info('Started reading paths...')
-        dataFlows = pd.read_csv(f'internal-dataset/flow-path-day{day}.csv', names=['timestamp', 'pathStart', 'pathEnd', 'path'], engine='pyarrow')
+        dataFlows = pd.read_csv(f'{DATASET_PATH}/flow-path-day{day}.csv', names=['timestamp', 'pathStart', 'pathEnd', 'path'], engine='pyarrow')
         dataFlows['pathName'] = dataFlows['pathStart'] + dataFlows['pathEnd']
         logger.info('Finished reading paths, number of paths: ' + str(len(dataFlows.index)))
         
@@ -55,7 +57,7 @@ def readLinks():
 
     try:
         logger.info('Started reading links...')
-        dataCapacity = pd.read_csv('internal-dataset/links.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
+        dataCapacity = pd.read_csv(f'{DATASET_PATH}/links.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
         dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
         dataCapacity.set_index('linkName', inplace=True)
         links = dataCapacity.to_dict('index')
@@ -83,7 +85,7 @@ def readTraffic(day):
 
     try:
         logger.info('Started reading traffic...')
-        dataTraffic = pd.read_csv(f'internal-dataset/flow-traffic-day{day}.csv', names=['timestamp', 'flowStart', 'flowEnd', 'traffic'], engine='pyarrow')
+        dataTraffic = pd.read_csv(f'{DATASET_PATH}/flow-traffic-day{day}.csv', names=['timestamp', 'flowStart', 'flowEnd', 'traffic'], engine='pyarrow')
         dataTraffic['flow'] = dataTraffic['flowStart'] + dataTraffic['flowEnd']
         dataTraffic = dataTraffic.drop(['flowStart','flowEnd'], axis=1)
         logger.info('Finished reading traffic, number of flows: ' + str(len(dataTraffic.index)))
