@@ -3,6 +3,8 @@ from p6.network_model import Router, Link
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
+AVG_CAPACITY = 47874
+
 def getRoutersHashFromFlow(flow):
     """
     This function creates a hash of routers from a list of paths.
@@ -63,7 +65,11 @@ def getFlowLinks(routers, capacities):
 
         for ingressKey in currentRouter.ingress:
             newLink = Link(currentRouter.ingress[ingressKey].name, currentRouter.name, 0)
-            newLink.capacity = capacities[newLink.name]['capacity']
+
+            if(newLink.name not in capacities):
+                newLink.capacity = AVG_CAPACITY
+            else:
+                newLink.capacity = capacities[newLink.name]['capacity']
 
             if(currentRouter == endRouter):
                 newLink.trafficRatio = 1 / len(currentRouter.ingress)

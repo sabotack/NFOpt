@@ -9,16 +9,9 @@ logger = log.setupCustomLogger(__name__)
 
 import pandas as pd
 
+DATA_DAY = 2
+
 # --- FUNCTIONS ---
-def printSolution(m):
-    if m.status == GRB.OPTIMAL:
-        print('Optimal solution found')
-        for v in m.getVars():
-            print(f"{v.varName}: {v.x}")
-    elif m.status == GRB.INFEASIBLE:
-        print('Model is infeasible')
-
-
 def calcUtil(flows, traffic, linksCapacity, ratios):
     # Initialization
     totalLinkUtilization = 0
@@ -40,8 +33,9 @@ def calcUtil(flows, traffic, linksCapacity, ratios):
     avgLinkUtilization = totalLinkUtilization / len(linkUtilization)
 
     return (totalLinkUtilization, avgLinkUtilization, linkUtilization)
-    
-DATA_DAY = 2
+
+def calcUtilNew():
+    return
 
 def main():
     logger.info('Started')
@@ -51,25 +45,42 @@ def main():
     traffic = dataUtils.readTraffic(DATA_DAY)
 
     for timestamp in flows:
-        for flow in flows[timestamp]:
+        for linkKey in links:
+            links[linkKey]['totalTraffic'] = 0
+
+        for i, flow in enumerate(flows[timestamp]):
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
+            flowLinks = nwUtils.getFlowLinks(routers, links)
 
-            # for router in routers:
-            #     print(f'Router: {routers[router].name}')
-            #     for ingressKey in routers[router].ingress:
-            #         print(f'- In: {routers[router].ingress[ingressKey].name}')
-            #     for egressKey in routers[router].egress:
-            #         print(f'- Out: {routers[router].egress[egressKey].name}')
+            for linkKey in flowLinks:
+                # if links[linkKey]['totalTraffic'] not in links:
+                #     links[linkKey]['totalTraffic'] = traffic[timestamp][flow]
+                # else:
+                #     links[linkKey]['totalTraffic'] += traffic[timestamp][flow]
+                if(linkKey in links):
+                    links[linkKey]['totalTraffic'] += traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
+                else:
+                    links[linkKey] = {
+                        'linkStart': flowLinks[linkKey].linkStart,
+                        'linkEnd': flowLinks[linkKey].linkEnd,
+                        'capacity': flowLinks[linkKey].capacity,
+                        'totalTraffic': traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
+                        }
 
-            # print(routers)
-            linksFlow = nwUtils.getFlowLinks(routers, links)
+            # log every 1000 flows
+            if(i % 10000 == 0):
+                logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
+            if(i == len(flows[timestamp]) - 1):
+                logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
             
-            for linkKey in linksFlow:
-                print(f'Link: {linksFlow[linkKey].name}')
-                print(f'- Capacity: {linksFlow[linkKey].capacity}')
-                print(f'- TrafficRatio: {linksFlow[linkKey].trafficRatio}')
-            break
-        break
+    
+        for linkKey in links:
+            procentage = links[linkKey]['totalTraffic'] / links[linkKey]['capacity'] * 100
+            if(procentage >= 70):
+                print(f'{timestamp} Link: {links[linkKey]}')
+                print(f'{timestamp} - {procentage}%')
+        
+
    
 
     # logger.debug(f"Flows: {len(flows)}")
