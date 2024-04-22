@@ -12,30 +12,13 @@ import pandas as pd
 DATA_DAY = 2
 
 # --- FUNCTIONS ---
-def calcUtil(flows, traffic, linksCapacity, ratios):
-    # Initialization
-    totalLinkUtilization = 0
-    linkUtilization = {}
+def calcLinkUtil(links):
+    util = {}
 
-    # Calculate linkUtil for all links in all flows
-    for flow in flows:
-        for path in flows[flow]:
-            for link in flows[flow][path]:
-                if link in linkUtilization:
-                    linkUtilization[link] +=  traffic[flow] * ratios[flow][path] / linksCapacity[link] * 100
-                else :
-                    linkUtilization[link] = traffic[flow] * ratios[flow][path] / linksCapacity[link] * 100
+    for linkKey in links:
+        util[linkKey] = links[linkKey]['totalTraffic'] / links[linkKey]['capacity'] * 100
 
-    # avg link utilization calculation
-    for link in linkUtilization:
-        totalLinkUtilization += linkUtilization[link]
-
-    avgLinkUtilization = totalLinkUtilization / len(linkUtilization)
-
-    return (totalLinkUtilization, avgLinkUtilization, linkUtilization)
-
-def calcUtilNew():
-    return
+    return util
 
 def main():
     logger.info('Started')
@@ -45,6 +28,7 @@ def main():
     traffic = dataUtils.readTraffic(DATA_DAY)
 
     for timestamp in flows:
+        # Reset totalTraffic for all links in this timestamp
         for linkKey in links:
             links[linkKey]['totalTraffic'] = 0
 
@@ -52,11 +36,8 @@ def main():
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
             flowLinks = nwUtils.getFlowLinks(routers, links)
 
+            # Update links with traffic
             for linkKey in flowLinks:
-                # if links[linkKey]['totalTraffic'] not in links:
-                #     links[linkKey]['totalTraffic'] = traffic[timestamp][flow]
-                # else:
-                #     links[linkKey]['totalTraffic'] += traffic[timestamp][flow]
                 if(linkKey in links):
                     links[linkKey]['totalTraffic'] += traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
                 else:
@@ -67,18 +48,20 @@ def main():
                         'totalTraffic': traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
                         }
 
-            # log every 1000 flows
+            # Log number of processed flows
             if(i % 10000 == 0):
                 logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
             if(i == len(flows[timestamp]) - 1):
                 logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
             
     
-        for linkKey in links:
-            procentage = links[linkKey]['totalTraffic'] / links[linkKey]['capacity'] * 100
-            if(procentage >= 70):
-                print(f'{timestamp} Link: {links[linkKey]}')
-                print(f'{timestamp} - {procentage}%')
+        linkUtil = calcLinkUtil(links)
+        
+        # for linkKey in links:
+        #     procentage = links[linkKey]['totalTraffic'] / links[linkKey]['capacity'] * 100
+        #     if(procentage >= 70):
+        #         print(f'{timestamp} Link: {links[linkKey]}')
+        #         print(f'{timestamp} - {procentage}%')
         
 
    
