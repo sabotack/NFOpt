@@ -10,6 +10,7 @@ from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
 DATASET_PATH = config.get('DEFAULT', 'dataset-path')
+DATA_OUTPUT_DIR = config.get('DEFAULT', 'data-output-dir')
 
 def readFlows(day):
     """
@@ -124,13 +125,11 @@ def writeDataToFile(dailyUtil):
     """
     
     try:
-        outdir = 'output'
-
-        if not os.path.exists(outdir):
-            os.makedirs(outdir)
+        if not os.path.exists(DATA_OUTPUT_DIR):
+            os.makedirs(DATA_OUTPUT_DIR)
 
         logger.info(f'Writing data to file...')
-        dailyUtil.to_csv(f'{outdir}/data.csv', mode='w', header=True, index=False)
+        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/data.csv', mode='w', header=True, index=False)
         logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')
