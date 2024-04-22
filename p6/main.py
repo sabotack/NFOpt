@@ -1,6 +1,7 @@
 import gurobipy as gp
-
 from gurobipy import GRB
+
+import statistics as stats
 
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
@@ -26,6 +27,8 @@ def main():
     flows = dataUtils.readFlows(DATA_DAY)
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
+
+    dailyUtil = pd.DataFrame(columns=['timestamp', 'min_util', 'max_util', 'avg_util'])
 
     for timestamp in flows:
         # Reset totalTraffic for all links in this timestamp
@@ -56,6 +59,9 @@ def main():
             
     
         linkUtil = calcLinkUtil(links)
+        dailyUtil.loc[len(dailyUtil.index)] = [timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())] 
+    
+    dataUtils.writeDataToFile(dailyUtil)
         
         # for linkKey in links:
         #     procentage = links[linkKey]['totalTraffic'] / links[linkKey]['capacity'] * 100

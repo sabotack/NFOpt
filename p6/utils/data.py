@@ -1,5 +1,7 @@
+import os
 import sys
 import pandas as pd
+import statistics as stats
 
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
@@ -106,3 +108,27 @@ def readTraffic(day):
         sys.exit(1)
 
     return traffic
+
+
+def writeDataToFile(dailyUtil):
+    """
+    Writes the daily utilization data to a CSV file.
+
+    ### Parameters:
+    ----------
+    #### dailyUtil: pandas.DataFrame
+    The daily utilization data to write to a file.
+    """
+    
+    try:
+        outdir = 'output'
+
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+
+        logger.info(f'Writing data to file...')
+        dailyUtil.to_csv(f'{outdir}/data.csv', mode='w', header=True, index=False)
+        logger.info(f'Finished writing data to file')
+    except Exception as e:
+        logger.error(f'Error writing data to file: {e}')
+        sys.exit(1)
