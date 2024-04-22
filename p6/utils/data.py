@@ -2,11 +2,14 @@ import os
 import sys
 import pandas as pd
 import statistics as stats
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
-DATASET_PATH = '../internal-dataset-week'
+DATASET_PATH = config.get('DEFAULT', 'dataset-path')
 
 def readFlows(day):
     """

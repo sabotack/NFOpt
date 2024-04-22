@@ -3,8 +3,12 @@ import sys
 import logging
 import datetime
 
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 def setupCustomLogger(name):
-    outdir = 'log'
+    outdir = config.get('DEFAULT', 'logging-dir')
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -15,10 +19,23 @@ def setupCustomLogger(name):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d")
     log_filename = f"{outdir}/p6_{timestamp}.log"
-    logging.basicConfig(filename=log_filename, level=logging.INFO, format=format)
-
+    logging.basicConfig(filename=log_filename, level=_logLevel(config.get('DEFAULT', 'logging-level')), format=format)
 
     logger = logging.getLogger(name)
     logger.addHandler(handler)
     
     return logger
+
+def _logLevel(level):
+    if level == 'DEBUG':
+        return logging.DEBUG
+    elif level == 'INFO':
+        return logging.INFO
+    elif level == 'WARNING':
+        return logging.WARNING
+    elif level == 'ERROR':
+        return logging.ERROR
+    elif level == 'CRITICAL':
+        return logging.CRITICAL
+    else:
+        return logging.INFO
