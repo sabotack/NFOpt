@@ -6,7 +6,7 @@ import statistics as stats
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
-DATASET_PATH = 'internal-dataset'
+DATASET_PATH = '../internal-dataset-week'
 
 def readFlows(day):
     """
