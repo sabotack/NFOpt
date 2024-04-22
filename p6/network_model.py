@@ -1,4 +1,3 @@
-
 class Router:
     def __init__(self, name):
         self.name = name
@@ -18,3 +17,4 @@ class Link:
         self.capacity = capacity
         self.name = f"{linkStart}{linkEnd}"
         self.trafficRatio = 0
+        
