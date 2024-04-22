@@ -180,5 +180,8 @@ internal-dataset/
 internal-dataset-week/
 internal-dataset-week.tar
 
+# data
+output/
+
 # code runner
 tempCodeRunnerFile.py
