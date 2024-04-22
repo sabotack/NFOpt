@@ -57,7 +57,7 @@ def readLinks():
 
     try:
         logger.info('Started reading links...')
-        dataCapacity = pd.read_csv('{DATASET_PATH}/links.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
+        dataCapacity = pd.read_csv(f'{DATASET_PATH}/links.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
         dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
         dataCapacity.set_index('linkName', inplace=True)
         links = dataCapacity.to_dict('index')
