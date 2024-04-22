@@ -1,7 +1,6 @@
 import os
 import sys
 import pandas as pd
-import statistics as stats
 import configparser
 config = configparser.ConfigParser()
 config.read('config.ini')

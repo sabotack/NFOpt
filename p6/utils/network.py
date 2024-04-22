@@ -62,7 +62,7 @@ def getFlowLinks(routers, capacities):
     visited.append(endRouter)
     queue.append(endRouter)
 
-    logger.debug(f'Visited: {endRouter.name}')
+    logger.debug(f'Started traversing (endrouter: {endRouter.name})')
 
     while queue:
         currentRouter = queue.pop(0)
@@ -85,8 +85,9 @@ def getFlowLinks(routers, capacities):
             if currentRouter.ingress[ingressKey] not in visited:
                 visited.append(currentRouter.ingress[ingressKey])
                 queue.append(currentRouter.ingress[ingressKey])
-                logger.debug(f'Visited: {currentRouter.ingress[ingressKey].name}')
     
+    logger.debug(f'Finished traversing (endrouter: {endRouter.name})')
+
     return flowLinks
 
 def _getEndRouter(routers):
