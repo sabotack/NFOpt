@@ -3,7 +3,11 @@ from p6.network_model import Router, Link
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
-AVG_CAPACITY = 47874
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+AVG_CAPACITY = config.getint('DEFAULT', 'average-capacity')
 
 def getRoutersHashFromFlow(flow):
     """
