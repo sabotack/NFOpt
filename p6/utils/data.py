@@ -32,7 +32,7 @@ def readFlows(day):
     """
 
     try:
-        logger.info('Start of reading flows...')
+        logger.info('START: reading flows...')
         logger.info('Reading paths...')
         dataFlows = pd.read_csv(f'{DATASET_PATH}/{DATASET_PATHS_PREFIX}{day}.csv', names=['timestamp', 'pathStart', 'pathEnd', 'path'], engine='pyarrow')
         dataFlows['pathName'] = dataFlows['pathStart'] + dataFlows['pathEnd']
@@ -47,13 +47,13 @@ def readFlows(day):
         logger.debug('Constructing flows dictionary...')
         flows = {}
         for (timestamp, pathName), paths in grouped_flows.items():
-            if len(paths) > 1:
-                if timestamp not in flows:
-                    flows[timestamp] = {}
-                flows[timestamp][pathName] = paths
+            for path in paths:
+                if len(path) > 1:
+                    if timestamp not in flows:
+                        flows[timestamp] = {}
+                    flows[timestamp][pathName] = paths
         logger.debug('Finished constructing flows dictionary')
-
-        logger.info('End of reading flows, number of groups: ' + str(len(flows)))
+        logger.info('END: reading flows, number of groups: ' + str(len(flows)))
     except Exception as e:
         logger.error(f'Error reading flows: {e}')
         sys.exit(1)
