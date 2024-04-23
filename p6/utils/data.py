@@ -105,6 +105,8 @@ def readTraffic(day):
     """
 
     try:
+        logger.info('START: reading traffic...')
+
         logger.info('Started reading traffic...')
         dataTraffic = pd.read_csv(f'{DATASET_PATH}/{DATASET_TRAFFIC_PREFIX}{day}.csv', names=['timestamp', 'flowStart', 'flowEnd', 'traffic'], engine='pyarrow')
         dataTraffic['flow'] = dataTraffic['flowStart'] + dataTraffic['flowEnd']
@@ -112,16 +114,20 @@ def readTraffic(day):
         logger.info('Finished reading traffic, number of flows: ' + str(len(dataTraffic.index)))
         
         # Grouping traffic by timestamp and flow
+        logger.debug('Grouping traffic...')
         grouped_traffic = dataTraffic.groupby(['timestamp', 'flow'])['traffic'].first().to_dict()
+        logger.debug('Finished grouping traffic')
 
         # Constructing the final traffic dictionary
+        logger.debug('Constructing traffic dictionary...')
         traffic = {}
         for (timestamp, flow), traffic_value in grouped_traffic.items():
             if timestamp not in traffic:
                 traffic[timestamp] = {}
             traffic[timestamp][flow] = traffic_value
+        logger.debug('Finished constructing traffic dictionary')
 
-        logger.info('Finished grouping traffic, number of flows: ' + str(len(traffic)))
+        logger.info('END: reading traffic, number of groups: ' + str(len(traffic)))
     except Exception as e:
         logger.error(f'Error reading traffic: {e}')
         sys.exit(1)
