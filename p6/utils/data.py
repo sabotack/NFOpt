@@ -33,6 +33,7 @@ def readFlows(day):
 
     try:
         logger.info('START: reading flows...')
+
         logger.info('Reading paths...')
         dataFlows = pd.read_csv(f'{DATASET_PATH}/{DATASET_PATHS_PREFIX}{day}.csv', names=['timestamp', 'pathStart', 'pathEnd', 'path'], engine='pyarrow')
         dataFlows['pathName'] = dataFlows['pathStart'] + dataFlows['pathEnd']
@@ -43,7 +44,7 @@ def readFlows(day):
         grouped_flows = dataFlows.groupby(['timestamp', 'pathName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
         logger.debug('Finished grouping paths')
 
-        # Constructing the final flows dictionary, only keeping flows with more than one path
+        # Constructing the final flows dictionary, only keeping paths with more than one router in path
         logger.debug('Constructing flows dictionary...')
         flows = {}
         for (timestamp, pathName), paths in grouped_flows.items():
@@ -53,6 +54,7 @@ def readFlows(day):
                         flows[timestamp] = {}
                     flows[timestamp][pathName] = paths
         logger.debug('Finished constructing flows dictionary')
+        
         logger.info('END: reading flows, number of groups: ' + str(len(flows)))
     except Exception as e:
         logger.error(f'Error reading flows: {e}')
@@ -71,12 +73,16 @@ def readLinks():
     """
 
     try:
-        logger.info('Started reading links...')
+        logger.info('START: reading links...')
+
+        logger.info('Reading links...')
         dataCapacity = pd.read_csv(f'{DATASET_PATH}/{DATASET_LINKS_NAME}.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
         dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
         dataCapacity.set_index('linkName', inplace=True)
         links = dataCapacity.to_dict('index')
         logger.info('Finished reading links, number of links: ' + str(len(links)))
+        
+        logger.info('END: reading links')
     except Exception as e:
         logger.error(f'Error reading links: {e}')
         sys.exit(1)
