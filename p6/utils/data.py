@@ -34,7 +34,9 @@ def readFlows(day):
         flows = {}
         for (timestamp, pathName), paths in grouped_flows.items():
             for path in paths:
-                if len(path) > 1:
+                # Only keep paths with more than one router (link has to have at least 2 routers)
+                # Also dont add paths that start and end at the same router
+                if len(path) > 1 and pathName[:5] != pathName[5:] :
                     if timestamp not in flows:
                         flows[timestamp] = {}
                     flows[timestamp][pathName] = paths
@@ -62,6 +64,9 @@ def readLinks():
         dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
         dataCapacity.set_index('linkName', inplace=True)
         links = dataCapacity.to_dict('index')
+        #remove links that start and end at the same router - update: this is not necessary cant find any duplicates
+        #copilot cooked here 🤨
+        #links = {k: v for k, v in links.items() if k[:5] != k[5:]}
         logger.info('Finished reading links, number of links: ' + str(len(links)))
     except Exception as e:
         logger.error(f'Error reading links: {e}')
@@ -99,6 +104,9 @@ def readTraffic(day):
         for (timestamp, flow), traffic_value in grouped_traffic.items():
             if timestamp not in traffic:
                 traffic[timestamp] = {}
+            # dont add traffic that starts and ends at the same router
+            if flow[:5] == flow[5:]:
+                continue
             traffic[timestamp][flow] = traffic_value
 
         logger.info('Finished grouping traffic, number of flows: ' + str(len(traffic)))
