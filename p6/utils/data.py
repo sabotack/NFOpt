@@ -33,11 +33,12 @@ def readFlows(day):
         # Constructing the final flows dictionary, only keeping flows with more than one path
         flows = {}
         for (timestamp, pathName), paths in grouped_flows.items():
-            if len(paths) > 1:
-                if timestamp not in flows:
-                    flows[timestamp] = {}
-                flows[timestamp][pathName] = paths
-        
+            for path in paths:
+                if len(path) > 1:
+                    if timestamp not in flows:
+                        flows[timestamp] = {}
+                    flows[timestamp][pathName] = paths
+            
         logger.info('Finished grouping paths, number of flows: ' + str(len(flows)))
     except Exception as e:
         logger.error(f'Error reading flows: {e}')

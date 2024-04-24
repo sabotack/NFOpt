@@ -1,10 +1,9 @@
 import gurobipy as gp
 
-from gurobipy import GRB
-
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
+from p6.linearOptimization import LinearOptimization as linOpt
 logger = log.setupCustomLogger(__name__)
 
 import pandas as pd
@@ -40,9 +39,40 @@ def calcUtilNew():
 def main():
     logger.info('Started')
 
-    flows = dataUtils.readFlows(DATA_DAY)
-    links = dataUtils.readLinks()
-    traffic = dataUtils.readTraffic(DATA_DAY)
+    # flows = dataUtils.readFlows(DATA_DAY)
+    # links = dataUtils.readLinks()
+    # traffic = dataUtils.readTraffic(DATA_DAY)
+    
+    
+    #make fake flows datahere
+    flows = {'Tue 00:00:00': {'AG': [['A', 'B', 'D', 'G'], ['A', 'B', 'E', 'G'], ['A', 'C', 'F', 'G']], 'LG': [['L', 'C', 'F', 'G'], ['L', 'H', 'G']]}}
+    links = {
+        'AB': {'linkStart': 'A', 'linkEnd': 'B', 'capacity': 1000},
+        'AC': {'linkStart': 'A', 'linkEnd': 'C', 'capacity': 1000},
+        'BD': {'linkStart': 'B', 'linkEnd': 'D', 'capacity': 1000},
+        'BE': {'linkStart': 'B', 'linkEnd': 'E', 'capacity': 1000},
+        'CF': {'linkStart': 'C', 'linkEnd': 'F', 'capacity': 1000},
+        'DG': {'linkStart': 'D', 'linkEnd': 'G', 'capacity': 1000},
+        'EG': {'linkStart': 'E', 'linkEnd': 'G', 'capacity': 1000},
+        'FG': {'linkStart': 'F', 'linkEnd': 'G', 'capacity': 1000},
+        'LC': {'linkStart': 'L', 'linkEnd': 'C', 'capacity': 1000},
+        'LH': {'linkStart': 'L', 'linkEnd': 'H', 'capacity': 1000},
+        'HG': {'linkStart': 'H', 'linkEnd': 'G', 'capacity': 1000},
+    }
+    traffic = {'Tue 00:00:00': {'AG': 200, 'LG': 200}}
+    
+    #test data but thats real data
+    # flows = {'Tue 00:00:00': {'R1004R1010': [['R1004', 'R1993', 'R1321', 'R1010'], ['R1004', 'R2264', 'R1321', 'R1010']]}}
+    # links = {
+    #         'R1004R1993': {'linkStart': 'R1004', 'linkEnd': 'R1993', 'capacity': 121212},
+    #         'R1993R1321': {'linkStart': 'R1993', 'linkEnd': 'R1321', 'capacity': 303030},
+    #         'R1004R2264': {'linkStart': 'R1004', 'linkEnd': 'R2264', 'capacity': 121212},
+    #         'R2264R1321': {'linkStart': 'R2264', 'linkEnd': 'R2153', 'capacity': 272727},
+    #         'R1321R1010': {'linkStart': 'R2153', 'linkEnd': 'R1010', 'capacity': 121212}
+    #     }
+    # traffic = {'Tue 00:00:00': {'R1004R1010': 3.506862}}
+    
+
 
     for timestamp in flows:
         for linkKey in links:
@@ -79,9 +109,53 @@ def main():
             if(procentage >= 70):
                 print(f'{timestamp} Link: {links[linkKey]}')
                 print(f'{timestamp} - {procentage}%')
-        
 
-   
+        # run through traffic and remove the ones that reference itself:
+        for trafficKey in list(traffic[timestamp]):
+            first_router, second_router = trafficKey[:5], trafficKey[5:]
+            # Check if the router IDs are the same
+            if first_router == second_router:
+                traffic[timestamp].pop(trafficKey)
+
+        # run through traffic and remove the ones that reference itself:
+        print("Duplicate Traffic removed:")
+        for trafficKey in traffic[timestamp]:
+            # Split the traffic key into two router IDs
+            first_router, second_router = trafficKey[:5], trafficKey[5:]
+            # Check if the router IDs are the same
+            if first_router == second_router:
+               print(f"{trafficKey} is a duplicate.")
+        
+        # remove duplicate flows
+        for flowKey in list(flows[timestamp]):
+            first_router, second_router = flowKey[:5], flowKey[5:]
+            if first_router == second_router:
+                flows[timestamp].pop(flowKey)
+
+        print("Duplicate Flows removed:")
+        for flowKey in flows[timestamp]:
+            first_router, second_router = flowKey[:5], flowKey[5:]
+            if first_router == second_router:
+                print(f"{flowKey} is a duplicate.")
+
+        # remove duplicate links
+        for linkKey in list(links):
+            first_router, second_router = linkKey[:5], linkKey[5:]
+            if first_router == second_router:
+                links.pop(linkKey)
+        
+        print("Duplicate Links removed:")
+        for linkKey in links:
+            first_router, second_router = linkKey[:5], linkKey[5:]
+            if first_router == second_router:
+                print(f"{linkKey} is a duplicate.")
+
+        #run linear optimization model
+        linOpt.runLinearOptimizationModel('averageUtilization', links, flows[timestamp], traffic[timestamp])
+        #linOpt.runLinearOptimizationModel('maxUtilization', links, flows[timestamp], traffic[timestamp])
+        #linOpt.runLinearOptimizationModel('squaredUtilization', links, flows[timestamp], traffic[timestamp])
+        break
+
 
     # logger.debug(f"Flows: {len(flows)}")
 

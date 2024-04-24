@@ -5,15 +5,15 @@ from gurobipy import GRB
 links, capacity = gp.multidict({
     ("A", "B"): 100,
     ("A", "C"): 200,
-    ("B", "D"): 25,
-    ("B", "E"): 75,
-    ("C", "F"): 400,
-    ("D", "G"): 25,
-    ("E", "G"): 75,
-    ("F", "G"): 1000,
-    ("L", "C"): 200,
-    ("L", "H"): 100,
-    ("H", "G"): 100
+    ("B", "D"): 300,
+    ("B", "E"): 400,
+    ("C", "F"): 500,
+    ("D", "G"): 600,
+    ("E", "G"): 700,
+    ("F", "G"): 800,
+    ("L", "C"): 900,
+    ("L", "H"): 1000,
+    ("H", "G"): 1100
 })
 
 #Paths for each source-destination pair
@@ -30,13 +30,14 @@ Paths = {
 }
 
 traffic = {
-    "AG": 150,
+    "AG": 200,
     "LG": 200,
 }
 
 
 # Create optimization model
-m = gp.Model("network_optimization")
+m = gp.Model("network_optimization")                #m.addConstr(link_flow == utilization[link] * capacity[link], name=f"util_{link}")
+
 
 # Decision variables for path ratios for each source-destination pair
 path_ratios = m.addVars([(sd, pathNum) for sd in Paths for pathNum in Paths[sd]], vtype=GRB.CONTINUOUS, name="PathRatios")
@@ -51,7 +52,6 @@ m.setObjective(max_utilization, GRB.MINIMIZE)
 for link in links:
     link_flow = gp.quicksum(
         path_ratios[sd, pathNum] * traffic[sd]
-        # [:-1] and [1:] are used to iterate over pairs of nodes in the path 
         if link in zip(Paths[sd][pathNum][:-1], Paths[sd][pathNum][1:])
         else 0
         for sd in Paths for pathNum in Paths[sd]

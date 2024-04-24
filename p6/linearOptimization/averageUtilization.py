@@ -40,7 +40,7 @@ m = gp.Model("network_optimization")
 
 # Decision variables for path ratios for each source-destination pair
 path_ratios = m.addVars([(sd, pathNum) for sd in Paths for pathNum in Paths[sd]], vtype=GRB.CONTINUOUS, name="PathRatios")
-
+print(f"path_ratios: {path_ratios}")
 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
 
 
@@ -54,6 +54,11 @@ for link in links:
         else 0
         for sd in Paths for pathNum in Paths[sd]
     )
+
+    print(f"link_flow: {link_flow}")
+    print(f"capacity of link: {capacity[link]}")
+
+
 
     # Constraint that link flow must be less than or equal to the capacity (In prinicple can be removed-> Dataset contains links that have above 100% utilization)
     m.addConstr(link_flow <= capacity[link], name=f"cap_{link}")
