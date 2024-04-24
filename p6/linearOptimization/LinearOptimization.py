@@ -47,7 +47,6 @@ def runLinearOptimizationModel(model, links, flows, traffic):
         m = gp.Model("network_optimization", env=env)
 
         m.setParam('logFile', 'gurobi.log')
-        m.setParam('DualReductions', 0)
 
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars([(sd, pathNum) for sd in flows for pathNum in range(len(flows[sd]))], vtype=GRB.CONTINUOUS, name="PathRatios")
@@ -66,7 +65,7 @@ def runLinearOptimizationModel(model, links, flows, traffic):
 
         # Constraints for each link's utilization
         for link in links:
-            linkTuple = tuple(link)
+            linkTuple = tuple((link[:5], link[5:]))
             link_flow = gp.quicksum(
                 path_ratios[sd, pathNum] * traffic[sd]
                 if linkTuple in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
@@ -119,18 +118,18 @@ def runLinearOptimizationModel(model, links, flows, traffic):
             # Calculate average link utilization
             totalLinkUtil = 0
             for link in links:
-                linkTuple = tuple(link)
+                linkTuple = tuple((link[:5], link[5:]))
                 link_flow = sum(
                     path_ratios[sd, pathNum].x * traffic[sd]
-                    if link in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
+                    if linkTuple in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
                     else 0
                     for sd in flows for pathNum in range(len(flows[sd]))
                 )
-                print(f"Link {link} has utilization: {link_flow / links[link]['capacity'] * 100}%")
+                if (link_flow / links[link]['capacity'] * 100) >= 10:
+                    logger.info(f'Link {link} has utilization: {link_flow / links[link]["capacity"] * 100}%')
                 totalLinkUtil += link_flow / links[link]['capacity'] * 100
             totalLinkUtil = totalLinkUtil / len(links)
-            logger.info(f"Average link utilization: {totalLinkUtil}%")
-
+            logger.info(f"Average link utilization: {totalLinkUtil}% for model {model}")
         elif m.status == GRB.INFEASIBLE:
             logger.error('Model is infeasible')
             m.computeIIS()
