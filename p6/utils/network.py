@@ -3,7 +3,11 @@ from p6.network_model import Router, Link
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)
 
-AVG_CAPACITY = 47874
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+AVG_CAPACITY = config.getint('DEFAULT', 'average-capacity')
 
 def getRoutersHashFromFlow(flow):
     """
@@ -58,7 +62,7 @@ def getFlowLinks(routers, capacities):
     visited.append(endRouter)
     queue.append(endRouter)
 
-    logger.debug(f'Visited: {endRouter.name}')
+    logger.debug(f'Started traversing (endrouter: {endRouter.name})')
 
     while queue:
         currentRouter = queue.pop(0)
@@ -81,8 +85,9 @@ def getFlowLinks(routers, capacities):
             if currentRouter.ingress[ingressKey] not in visited:
                 visited.append(currentRouter.ingress[ingressKey])
                 queue.append(currentRouter.ingress[ingressKey])
-                logger.debug(f'Visited: {currentRouter.ingress[ingressKey].name}')
     
+    logger.debug(f'Finished traversing (endrouter: {endRouter.name})')
+
     return flowLinks
 
 def _getEndRouter(routers):
