@@ -51,13 +51,13 @@ def readFlows(day):
             for path in paths:
                 # Only keep paths with more than one router (link has to have at least 2 routers)
                 # Also dont add paths that start and end at the same router
-                if len(path) > 1 and pathName[:5] != pathName[5:] :
+                if len(path) > 1 and pathName[:5] != pathName[5:]:
                     if timestamp not in flows:
                         flows[timestamp] = {}
                     flows[timestamp][pathName] = paths
         logger.debug('Finished constructing flows dictionary')    
 
-        logger.info('Finished grouping paths, number of flows: ' + str(len(flows)))
+        logger.info('END: reading flows, number of groups: ' + str(len(flows)))
     except Exception as e:
         logger.error(f'Error reading flows: {e}')
         sys.exit(1)

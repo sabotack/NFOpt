@@ -7,7 +7,7 @@ from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
 from p6.linearOptimization import LinearOptimization as linOpt
-from p6.linearOptimization.LinearOptimization import LinearOptimizationModel as LinearOptimizationModel
+from p6.linearOptimization.LinearOptimization import LinearOptimizationModel
 
 logger = log.setupCustomLogger(__name__)
 
