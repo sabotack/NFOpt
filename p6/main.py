@@ -78,7 +78,6 @@ def main(optimizeType):
         else:
             linkUtil = calcLinkUtil(links)
             dailyUtil.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
-        break
 
 
     if (optimizeType != None):

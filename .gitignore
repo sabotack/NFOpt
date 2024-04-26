@@ -183,6 +183,7 @@ internal-dataset-week.tar
 
 # data
 output/
+ratios/
 
 # logs
 log/
