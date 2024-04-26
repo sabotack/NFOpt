@@ -1,20 +1,20 @@
+import datetime
 import os
 import sys
 import pandas as pd
-import configparser
-config = configparser.ConfigParser()
-config.read('config.ini')
-
 from p6.utils import log
+from dotenv import load_dotenv
+
+load_dotenv('variables.env')
 logger = log.setupCustomLogger(__name__)
 
-DATASET_PATH = config.get('DEFAULT', 'dataset-path')
-DATASET_PATHS_PREFIX = config.get('DEFAULT', 'dataset-paths-prefix')
-DATASET_TRAFFIC_PREFIX = config.get('DEFAULT', 'dataset-traffic-prefix')
-DATASET_LINKS_NAME = config.get('DEFAULT', 'dataset-links-name')
+DATASET_PATH = os.getenv("DATASET_PATH")
+DATASET_PATHS_PREFIX = os.getenv("DATASET_PATHS_PREFIX")
+DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
+DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
-DATA_OUTPUT_DIR = config.get('DEFAULT', 'data-output-dir')
-DATA_OUTPUT_NAME = config.get('DEFAULT', 'data-output-name')
+DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
+DATA_OUTPUT_NAME = os.getenv("DATA_OUTPUT_NAME")
 
 def readFlows(day):
     """
@@ -157,8 +157,10 @@ def writeDataToFile(dailyUtil):
         if not os.path.exists(DATA_OUTPUT_DIR):
             os.makedirs(DATA_OUTPUT_DIR)
 
+        timestamp = datetime.datetime.now().strftime("%Y%m%d")
+        
         logger.info(f'Writing data to file...')
-        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/{DATA_OUTPUT_NAME}.csv', mode='w', header=True, index=False)
+        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/{DATA_OUTPUT_NAME}_{timestamp}.csv', mode='w', header=True, index=False)
         logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')
