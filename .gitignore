@@ -187,6 +187,9 @@ output/
 # logs
 log/
 
+# Mac
+.DS_Store
+*.DS_Store
 
 # code runner
 tempCodeRunnerFile.py
