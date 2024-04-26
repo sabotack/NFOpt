@@ -18,7 +18,10 @@ pyarrow = "^15.0.2"
 python-dotenv = "^1.0.1"
 
 [tool.poetry.scripts]
-start = "p6.main:main"
+baseline = "p6.main:_baseline"
+opt_average = "p6.main:_optimizeAverageUtilization"
+opt_max = "p6.main:_optimizeMaxUtilization"
+opt_squared = "p6.main:_optimizeSquaredUtilization"
 
 [build-system]
 requires = ["poetry-core"]

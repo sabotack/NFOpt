@@ -169,5 +169,4 @@ def writeDataToFile(data, type):
 
 class DataType(Enum):
     BASELINE = 'baseline'
-    OPTIMIZED = 'optimized'
     RATIOS = 'ratios'
