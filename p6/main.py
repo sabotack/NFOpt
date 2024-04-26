@@ -31,8 +31,8 @@ def main():
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
-    dailyUtil = pd.DataFrame(columns=['timestamp', 'min_util', 'max_util', 'avg_util'])
-    optUtil = pd.DataFrame(columns=['timestamp', 'min_util', 'max_util', 'avg_util'])
+    dailyUtil = []
+    optUtil = []
 
     for timestamp in flows:
         # Reset totalTraffic for all links in this timestamp
@@ -66,19 +66,18 @@ def main():
                 logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
 
         linkUtil = calcLinkUtil(links)
-        dailyUtil.loc[len(dailyUtil.index)] = [timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())] 
+        dailyUtil.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
 
         #run linear optimization model
-        avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
-        #avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
-        #avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
+        avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp], timestamp)
+        #avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp], timestamp)
+        #avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp], timestamp)
 
-        optUtil.loc[len(optUtil.index)] = [timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil]
-    
-    dataUtils.writeDataToFile(dailyUtil, dataUtils.DataType.BASELINE)
-    dataUtils.writeDataToFile(optUtil, dataUtils.DataType.OPTIMIZED)
+        optUtil.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
+        break
 
-   
+    dataUtils.writeDataToFile(pd.DataFrame(dailyUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), dataUtils.DataType.BASELINE)
+    dataUtils.writeDataToFile(pd.DataFrame(optUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), dataUtils.DataType.OPTIMIZED)
 
     # logger.debug(f"Flows: {len(flows)}")
 

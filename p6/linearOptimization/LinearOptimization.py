@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from enum import Enum
 
 from p6.utils import log
+from p6.utils import data as dataUtils
 logger = log.setupCustomLogger(__name__)
 
 load_dotenv('variables.env')
@@ -27,7 +28,7 @@ class LinearOptimizationModel(Enum):
     squaredUtilization = 'squaredUtilization'
 
 
-def runLinearOptimizationModel(model, links, flows, traffic):
+def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
     """
     Runs the linear optimization model to calculate the link utilization and the average link utilization.
 
@@ -105,12 +106,17 @@ def runLinearOptimizationModel(model, links, flows, traffic):
         logger.info('Finished optimization')
 
         # Output the results
+        # ratioData = pd.DataFrame(columns=['timestamp', 'flowName', 'pathNum', 'ratio'])
+        ratioData = []
         if m.status == GRB.OPTIMAL:
-            #debug optimal path ratios
+            #debug and save optimal path ratios
             for sd in flows:
                 logger.debug(f"Optimal path ratios for {sd}:")
                 for pathNum in range(len(flows[sd])):
+                    ratioData.append([timestamp, sd, pathNum, path_ratios[sd, pathNum].x])
                     logger.debug(f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %")
+            
+            dataUtils.writeDataToFile(pd.DataFrame(ratioData, columns=['timestamp', 'flowName', 'pathNum', 'ratio']), dataUtils.DataType.RATIOS)
 
             # Calculate average link utilization
             totalLinkUtil = 0
