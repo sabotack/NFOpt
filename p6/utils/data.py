@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 from p6.utils import log
 from dotenv import load_dotenv
+from enum import Enum
 
 load_dotenv('variables.env')
 logger = log.setupCustomLogger(__name__)
@@ -14,7 +15,6 @@ DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
 DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
-DATA_OUTPUT_NAME = os.getenv("DATA_OUTPUT_NAME")
 
 def readFlows(day):
     """
@@ -143,13 +143,13 @@ def readTraffic(day):
     return traffic
 
 
-def writeDataToFile(dailyUtil):
+def writeDataToFile(data, type):
     """
     Writes the daily utilization data to a CSV file.
 
     ### Parameters:
     ----------
-    #### dailyUtil: pandas.DataFrame
+    #### data: pandas.DataFrame
     The daily utilization data to write to a file.
     """
     
@@ -158,10 +158,15 @@ def writeDataToFile(dailyUtil):
             os.makedirs(DATA_OUTPUT_DIR)
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d")
-        
+
         logger.info(f'Writing data to file...')
-        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/{DATA_OUTPUT_NAME}_{timestamp}.csv', mode='w', header=True, index=False)
+        data.to_csv(f'{DATA_OUTPUT_DIR}/{type.value}_{timestamp}.csv', mode='w', header=True, index=False)
         logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')
         sys.exit(1)
+
+
+class DataType(Enum):
+    BASELINE = 'baseline'
+    OPTIMIZED = 'optimized'

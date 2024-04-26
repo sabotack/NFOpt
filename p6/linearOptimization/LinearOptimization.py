@@ -108,24 +108,26 @@ def runLinearOptimizationModel(model, links, flows, traffic):
         # Output the results
         if m.status == GRB.OPTIMAL:
             #find largest util and print
-            match model:
-                case LinearOptimizationModel.averageUtilization:
-                    totalLinkUtil = m.getObjective().getValue() / len(links) * 100
-                case LinearOptimizationModel.maxUtilization:
-                    totalLinkUtil = max_utilization.x * 100
-                case LinearOptimizationModel.squaredUtilization:
-                    totalLinkUtil = m.getObjective().getValue() / len(links) * 100
-                case _:
-                    raise ValueError(f'Invalid model: {model}')
+
+            # ---- JUST GETS OVERRIDEN LATER? ----
+            # match model:
+            #     case LinearOptimizationModel.averageUtilization:
+            #         totalLinkUtil = m.getObjective().getValue() / len(links) * 100
+            #     case LinearOptimizationModel.maxUtilization:
+            #         totalLinkUtil = max_utilization.x * 100
+            #     case LinearOptimizationModel.squaredUtilization:
+            #         totalLinkUtil = m.getObjective().getValue() / len(links) * 100
+            #     case _:
+            #         raise ValueError(f'Invalid model: {model}')
             for sd in flows:
                 logger.info(f"Optimal path ratios for {sd}:")
                 for pathNum in range(len(flows[sd])):
                     logger.info(f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %")
 
-            logger.info("")
-
             # Calculate average link utilization
             totalLinkUtil = 0
+            minLinkUtil = 0
+            maxLinkUtil = 0
             for link in links:
                 linkTuple = tuple((link[:5], link[5:]))
                 link_flow = sum(
@@ -137,8 +139,18 @@ def runLinearOptimizationModel(model, links, flows, traffic):
                 if (link_flow / links[link]['capacity'] * 100) >= 10:
                     logger.info(f'Link {link} has utilization: {link_flow / links[link]["capacity"] * 100}%')
                 totalLinkUtil += link_flow / links[link]['capacity'] * 100
+                
+                # Update min and max link utilization
+                if (link_flow / links[link]['capacity'] * 100) < minLinkUtil:
+                    minLinkUtil = link_flow / links[link]['capacity'] * 100
+                if (link_flow / links[link]['capacity'] * 100) > maxLinkUtil:
+                    maxLinkUtil = link_flow / links[link]['capacity'] * 100
+                
             totalLinkUtil = totalLinkUtil / len(links)
             logger.info(f"Average link utilization: {totalLinkUtil}% for model {model}")
+            
+            return totalLinkUtil, minLinkUtil, maxLinkUtil
+
         elif m.status == GRB.INFEASIBLE:
             logger.error('Model is infeasible')
             m.computeIIS()

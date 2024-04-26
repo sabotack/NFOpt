@@ -65,11 +65,11 @@ def main():
         dailyUtil.loc[len(dailyUtil.index)] = [timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())] 
 
         #run linear optimization model
-        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
-        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
-        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
+        #totalLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
+        #totalLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
+        #totalLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
     
-    dataUtils.writeDataToFile(dailyUtil)
+    dataUtils.writeDataToFile(dailyUtil, dataUtils.DataType.BASELINE)
 
    
 
