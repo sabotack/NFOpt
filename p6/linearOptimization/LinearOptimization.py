@@ -115,7 +115,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
                     ratioData.append([timestamp, sd, pathNum, path_ratios[sd, pathNum].x])
                     logger.debug(f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %")
             
-            dataUtils.writeDataToFile(pd.DataFrame(ratioData, columns=['timestamp', 'flowName', 'pathNum', 'ratio']), dataUtils.DataType.RATIOS)
+            dataUtils.writeDataToFile(pd.DataFrame(ratioData, columns=['timestamp', 'flowName', 'pathNum', 'ratio']), model, True)
 
             # Calculate average, min and max link utilization
             totalLinkUtil = 0
