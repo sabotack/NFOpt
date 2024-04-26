@@ -15,7 +15,6 @@ import pandas as pd
 
 DATA_DAY = 2
 
-# --- FUNCTIONS ---
 def calcLinkUtil(links):
     util = {}
 
@@ -52,7 +51,8 @@ def main(optimizeType):
             links[linkKey]['totalTraffic'] = 0
             links[linkKey]['listFlows'] = []
 
-        for i, flow in enumerate(flows[timestamp]):
+        logger.info(f'Processing {timestamp} with {len(flows[timestamp])} flows...')
+        for flow in flows[timestamp]:
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
             flowLinks = nwUtils.getFlowLinks(routers, links)
 
@@ -71,19 +71,13 @@ def main(optimizeType):
                 
                 links[linkKey]['listFlows'].append(flow)
 
-            # Log number of processed flows
-            if(i % 10000 == 0):
-                logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
-            if(i == len(flows[timestamp]) - 1):
-                logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
-
-        linkUtil = calcLinkUtil(links)
-        dailyUtil.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
-
-        #run linear optimization model
+        #run linear optimization or baseline calculations
         if (optimizeType != None):
             avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(optimizeType, links, flows[timestamp], traffic[timestamp], timestamp)
             optUtil.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
+        else:
+            linkUtil = calcLinkUtil(links)
+            dailyUtil.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
         break
 
 

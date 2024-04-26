@@ -74,6 +74,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
                 raise ValueError(f'Invalid model: {model}')
 
         # Constraints for each link's utilization
+        # Consists of the sum of ratios and traffic for each path related to the link
         for link in links:
             linkTuple = tuple((link[:5], link[5:]))
             link_flow = gp.quicksum(
@@ -94,19 +95,17 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
                     m.addConstr(link_flow == utilization[link] * links[link]['capacity'], name=f"util_{link}")
                 case _:
                     raise ValueError(f'Invalid model: {model}')
+                
         for sd in traffic:
             m.addConstr(path_ratios.sum(sd, '*') == 1, name=f"traffic_split_{sd}")
 
         m.write(f"{model}.lp")
 
         logger.info('Started optimization...')
-
         m.optimize()
-
         logger.info('Finished optimization')
 
         # Output the results
-        # ratioData = pd.DataFrame(columns=['timestamp', 'flowName', 'pathNum', 'ratio'])
         ratioData = []
         if m.status == GRB.OPTIMAL:
             #debug and save optimal path ratios
@@ -118,7 +117,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
             
             dataUtils.writeDataToFile(pd.DataFrame(ratioData, columns=['timestamp', 'flowName', 'pathNum', 'ratio']), dataUtils.DataType.RATIOS)
 
-            # Calculate average link utilization
+            # Calculate average, min and max link utilization
             totalLinkUtil = 0
             minLinkUtil = 0
             maxLinkUtil = 0
@@ -130,8 +129,6 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
                     else 0
                     for sd in links[link]['listFlows'] for pathNum in range(len(flows[sd]))
                 )
-                if (link_flow / links[link]['capacity'] * 100) >= 10:
-                    logger.info(f'Link {link} has utilization: {link_flow / links[link]["capacity"] * 100}%')
                 totalLinkUtil += link_flow / links[link]['capacity'] * 100
                 
                 # Update min and max link utilization
