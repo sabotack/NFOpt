@@ -17,7 +17,7 @@ def setupCustomLogger(name):
     handler.setFormatter(formatter)
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d")
-    log_filename = f"{outdir}/p6_{timestamp}.log"
+    log_filename = f"{outdir}/{timestamp}_p6.log"
     logging.basicConfig(filename=log_filename, level=_logLevel(os.getenv('LOGGING_LEVEL')), format=format)
 
     logger = logging.getLogger(name)

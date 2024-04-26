@@ -79,7 +79,7 @@ def runLinearOptimizationModel(model, links, flows, traffic):
                 path_ratios[sd, pathNum] * traffic[sd]
                 if linkTuple in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
                 else 0
-                for sd in flows for pathNum in range(len(flows[sd]))
+                for sd in links[link]['listFlows'] for pathNum in range(len(flows[sd]))
             )
 
             m.addConstr(link_flow <= links[link]['capacity'], name=f"cap_{link}")
@@ -93,7 +93,6 @@ def runLinearOptimizationModel(model, links, flows, traffic):
                     m.addConstr(link_flow == utilization[link] * links[link]['capacity'], name=f"util_{link}")
                 case _:
                     raise ValueError(f'Invalid model: {model}')
-                
         for sd in traffic:
             m.addConstr(path_ratios.sum(sd, '*') == 1, name=f"traffic_split_{sd}")
 
@@ -107,22 +106,11 @@ def runLinearOptimizationModel(model, links, flows, traffic):
 
         # Output the results
         if m.status == GRB.OPTIMAL:
-            #find largest util and print
-
-            # ---- JUST GETS OVERRIDEN LATER? ----
-            # match model:
-            #     case LinearOptimizationModel.averageUtilization:
-            #         totalLinkUtil = m.getObjective().getValue() / len(links) * 100
-            #     case LinearOptimizationModel.maxUtilization:
-            #         totalLinkUtil = max_utilization.x * 100
-            #     case LinearOptimizationModel.squaredUtilization:
-            #         totalLinkUtil = m.getObjective().getValue() / len(links) * 100
-            #     case _:
-            #         raise ValueError(f'Invalid model: {model}')
+            #debug optimal path ratios
             for sd in flows:
-                logger.info(f"Optimal path ratios for {sd}:")
+                logger.debug(f"Optimal path ratios for {sd}:")
                 for pathNum in range(len(flows[sd])):
-                    logger.info(f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %")
+                    logger.debug(f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %")
 
             # Calculate average link utilization
             totalLinkUtil = 0
@@ -134,7 +122,7 @@ def runLinearOptimizationModel(model, links, flows, traffic):
                     path_ratios[sd, pathNum].x * traffic[sd]
                     if linkTuple in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
                     else 0
-                    for sd in flows for pathNum in range(len(flows[sd]))
+                    for sd in links[link]['listFlows'] for pathNum in range(len(flows[sd]))
                 )
                 if (link_flow / links[link]['capacity'] * 100) >= 10:
                     logger.info(f'Link {link} has utilization: {link_flow / links[link]["capacity"] * 100}%')
@@ -146,10 +134,10 @@ def runLinearOptimizationModel(model, links, flows, traffic):
                 if (link_flow / links[link]['capacity'] * 100) > maxLinkUtil:
                     maxLinkUtil = link_flow / links[link]['capacity'] * 100
                 
-            totalLinkUtil = totalLinkUtil / len(links)
-            logger.info(f"Average link utilization: {totalLinkUtil}% for model {model}")
+            avgLinkUtil = totalLinkUtil / len(links)
+            logger.info(f"Average link utilization: {avgLinkUtil}% for model {model}")
             
-            return totalLinkUtil, minLinkUtil, maxLinkUtil
+            return avgLinkUtil, minLinkUtil, maxLinkUtil
 
         elif m.status == GRB.INFEASIBLE:
             logger.error('Model is infeasible')

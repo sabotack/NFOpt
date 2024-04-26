@@ -32,11 +32,13 @@ def main():
     traffic = dataUtils.readTraffic(DATA_DAY)
 
     dailyUtil = pd.DataFrame(columns=['timestamp', 'min_util', 'max_util', 'avg_util'])
+    optUtil = pd.DataFrame(columns=['timestamp', 'min_util', 'max_util', 'avg_util'])
 
     for timestamp in flows:
         # Reset totalTraffic for all links in this timestamp
         for linkKey in links:
             links[linkKey]['totalTraffic'] = 0
+            links[linkKey]['listFlows'] = []
 
         for i, flow in enumerate(flows[timestamp]):
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
@@ -53,23 +55,28 @@ def main():
                         'capacity': flowLinks[linkKey].capacity,
                         'totalTraffic': traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
                         }
+                    links[linkKey]['listFlows'] = []
+                
+                links[linkKey]['listFlows'].append(flow)
 
             # Log number of processed flows
             if(i % 10000 == 0):
                 logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
             if(i == len(flows[timestamp]) - 1):
                 logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
-            
-    
+
         linkUtil = calcLinkUtil(links)
         dailyUtil.loc[len(dailyUtil.index)] = [timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())] 
 
         #run linear optimization model
-        #totalLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
-        #totalLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
-        #totalLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
+        avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
+        #avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
+        #avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
+
+        optUtil.loc[len(optUtil.index)] = [timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil]
     
     dataUtils.writeDataToFile(dailyUtil, dataUtils.DataType.BASELINE)
+    dataUtils.writeDataToFile(optUtil, dataUtils.DataType.OPTIMIZED)
 
    
 

@@ -160,7 +160,7 @@ def writeDataToFile(data, type):
         timestamp = datetime.datetime.now().strftime("%Y%m%d")
 
         logger.info(f'Writing data to file...')
-        data.to_csv(f'{DATA_OUTPUT_DIR}/{type.value}_{timestamp}.csv', mode='w', header=True, index=False)
+        data.to_csv(f'{DATA_OUTPUT_DIR}/{timestamp}_{type.value}.csv', mode='w', header=True, index=False)
         logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')
