@@ -1,20 +1,20 @@
+import datetime
 import os
 import sys
 import pandas as pd
-import configparser
-config = configparser.ConfigParser()
-config.read('config.ini')
-
 from p6.utils import log
+from dotenv import load_dotenv
+
+load_dotenv('variables.env')
 logger = log.setupCustomLogger(__name__)
 
-DATASET_PATH = config.get('DEFAULT', 'dataset-path')
-DATASET_PATHS_PREFIX = config.get('DEFAULT', 'dataset-paths-prefix')
-DATASET_TRAFFIC_PREFIX = config.get('DEFAULT', 'dataset-traffic-prefix')
-DATASET_LINKS_NAME = config.get('DEFAULT', 'dataset-links-name')
+DATASET_PATH = os.getenv("DATASET_PATH")
+DATASET_PATHS_PREFIX = os.getenv("DATASET_PATHS_PREFIX")
+DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
+DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
-DATA_OUTPUT_DIR = config.get('DEFAULT', 'data-output-dir')
-DATA_OUTPUT_NAME = config.get('DEFAULT', 'data-output-name')
+DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
+DATA_OUTPUT_NAME = os.getenv("DATA_OUTPUT_NAME")
 
 def readFlows(day):
     """
@@ -49,12 +49,14 @@ def readFlows(day):
         flows = {}
         for (timestamp, pathName), paths in grouped_flows.items():
             for path in paths:
-                if len(path) > 1:
+                # Only keep paths with more than one router (link has to have at least 2 routers)
+                # Also dont add paths that start and end at the same router
+                if len(path) > 1 and pathName[:5] != pathName[5:]:
                     if timestamp not in flows:
                         flows[timestamp] = {}
                     flows[timestamp][pathName] = paths
-        logger.debug('Finished constructing flows dictionary')
-        
+        logger.debug('Finished constructing flows dictionary')    
+
         logger.info('END: reading flows, number of groups: ' + str(len(flows)))
     except Exception as e:
         logger.error(f'Error reading flows: {e}')
@@ -80,6 +82,9 @@ def readLinks():
         dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
         dataCapacity.set_index('linkName', inplace=True)
         links = dataCapacity.to_dict('index')
+        #remove links that start and end at the same router - update: this is not necessary cant find any duplicates
+        #copilot cooked here 🤨
+        #links = {k: v for k, v in links.items() if k[:5] != k[5:]}
         logger.info('Finished reading links, number of links: ' + str(len(links)))
         
         logger.info('END: reading links')
@@ -124,6 +129,9 @@ def readTraffic(day):
         for (timestamp, flow), traffic_value in grouped_traffic.items():
             if timestamp not in traffic:
                 traffic[timestamp] = {}
+            # dont add traffic that starts and ends at the same router
+            if flow[:5] == flow[5:]:
+                continue
             traffic[timestamp][flow] = traffic_value
         logger.debug('Finished constructing traffic dictionary')
 
@@ -149,8 +157,10 @@ def writeDataToFile(dailyUtil):
         if not os.path.exists(DATA_OUTPUT_DIR):
             os.makedirs(DATA_OUTPUT_DIR)
 
+        timestamp = datetime.datetime.now().strftime("%Y%m%d")
+        
         logger.info(f'Writing data to file...')
-        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/{DATA_OUTPUT_NAME}.csv', mode='w', header=True, index=False)
+        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/{DATA_OUTPUT_NAME}_{timestamp}.csv', mode='w', header=True, index=False)
         logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')

@@ -1,3 +1,4 @@
+import os
 from p6.network_model import Router, Link
 
 from p6.utils import log
@@ -7,7 +8,10 @@ import configparser
 config = configparser.ConfigParser()
 config.read('config.ini')
 
-AVG_CAPACITY = config.getint('DEFAULT', 'average-capacity')
+from dotenv import load_dotenv
+load_dotenv('variables.env')
+
+AVG_CAPACITY = int(os.getenv('AVERAGE_CAPACITY'))
 
 def getRoutersHashFromFlow(flow):
     """

@@ -6,6 +6,9 @@ import statistics as stats
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
+from p6.linearOptimization import LinearOptimization as linOpt
+from p6.linearOptimization.LinearOptimization import LinearOptimizationModel
+
 logger = log.setupCustomLogger(__name__)
 
 import pandas as pd
@@ -60,15 +63,13 @@ def main():
     
         linkUtil = calcLinkUtil(links)
         dailyUtil.loc[len(dailyUtil.index)] = [timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())] 
+
+        #run linear optimization model
+        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
+        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
+        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
     
     dataUtils.writeDataToFile(dailyUtil)
-        
-        # for linkKey in links:
-        #     procentage = links[linkKey]['totalTraffic'] / links[linkKey]['capacity'] * 100
-        #     if(procentage >= 70):
-        #         print(f'{timestamp} Link: {links[linkKey]}')
-        #         print(f'{timestamp} - {procentage}%')
-        
 
    
 

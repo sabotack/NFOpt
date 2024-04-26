@@ -3,12 +3,11 @@ import sys
 import logging
 import datetime
 
-import configparser
-config = configparser.ConfigParser()
-config.read('config.ini')
+from dotenv import load_dotenv
+load_dotenv('variables.env')
 
 def setupCustomLogger(name):
-    outdir = config.get('DEFAULT', 'logging-dir')
+    outdir = os.getenv('LOGGING_DIR')
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -19,7 +18,7 @@ def setupCustomLogger(name):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d")
     log_filename = f"{outdir}/p6_{timestamp}.log"
-    logging.basicConfig(filename=log_filename, level=_logLevel(config.get('DEFAULT', 'logging-level')), format=format)
+    logging.basicConfig(filename=log_filename, level=_logLevel(os.getenv('LOGGING_LEVEL')), format=format)
 
     logger = logging.getLogger(name)
     logger.addHandler(handler)
