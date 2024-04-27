@@ -3,6 +3,7 @@ import pandas as pd
 import gurobipy as gp
 
 from gurobipy import GRB
+from datetime import datetime
 from dotenv import load_dotenv
 
 from p6.calc_type_enum import CalcType
@@ -12,12 +13,14 @@ logger = log.setupCustomLogger(__name__)
 
 load_dotenv('variables.env')
 
-#environment variables
+# Environment variables
 options = {
     "WLSACCESSID": os.getenv("WLSACCESSID"),
     "WLSSECRET": os.getenv("WLSSECRET"),
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
+
+LOGGING_DIR = os.getenv('LOGGING_DIR')
 
 def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
     """
@@ -46,8 +49,6 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         # Create optimization model based on the input model
         m = gp.Model("network_optimization", env=env)
-
-        m.setParam('logFile', 'gurobi.log')
 
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars([(sd, pathNum) for sd in flows for pathNum in range(len(flows[sd]))], vtype=GRB.CONTINUOUS, name="PathRatios")

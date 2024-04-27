@@ -1,10 +1,10 @@
-import datetime
 import os
 import sys
 import pandas as pd
+
 from p6.utils import log
+from datetime import datetime
 from dotenv import load_dotenv
-from enum import Enum
 
 load_dotenv('variables.env')
 logger = log.setupCustomLogger(__name__)
@@ -161,7 +161,7 @@ def writeDataToFile(data, type, ratioData=None):
             os.makedirs(RATIO_OUTPUT_DIR)
 
         filePath = ''
-        timestamp = datetime.datetime.now().strftime("%Y%m%d")
+        timestamp = datetime.now().strftime("%Y%m%d")
 
         if ratioData is not None:
             time = (data['timestamp'][0][:3] + data['timestamp'][0][4:-6]).lower()

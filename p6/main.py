@@ -5,7 +5,7 @@ from p6.calc_type_enum import CalcType
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
-from p6.linearOptimization import LinearOptimization as linOpt
+from p6.linear_optimization import optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
