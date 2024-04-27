@@ -1,7 +1,4 @@
 import argparse
-import gurobipy as gp
-from gurobipy import GRB
-
 import statistics as stats
 
 from p6.calc_type_enum import CalcType
@@ -35,11 +32,10 @@ def main():
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
-    dailyUtil = []
-    optUtil = []
+    utilStats = []
 
     for timestamp in flows:
-        # Reset totalTraffic for all links in this timestamp
+        # Reset totalTraffic and listFlows for all links in this timestamp
         for linkKey in links:
             links[linkKey]['totalTraffic'] = 0
             links[linkKey]['listFlows'] = []
@@ -49,7 +45,7 @@ def main():
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
             flowLinks = nwUtils.getFlowLinks(routers, links)
 
-            # Update links with traffic
+            # Update links with traffic, and if link is new, add it to links
             for linkKey in flowLinks:
                 if(linkKey in links):
                     links[linkKey]['totalTraffic'] += traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
@@ -62,17 +58,17 @@ def main():
                         }
                     links[linkKey]['listFlows'] = []
                 
+                # Add this flow to the list of flows for this link
                 links[linkKey]['listFlows'].append(flow)
 
-        #run linear optimization or baseline calculations
+        # Run linear optimization or baseline calculations
         if (args.model_type == CalcType.BASELINE.value):
             linkUtil = calcLinkUtil(links)
-            dailyUtil.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
+            utilStats.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
         else:
             avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(args.model_type, links, flows[timestamp], traffic[timestamp], timestamp)
-            optUtil.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
+            utilStats.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
 
-    if (args.model_type == CalcType.BASELINE.value):
-        dataUtils.writeDataToFile(pd.DataFrame(dailyUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), args.model_type)
-    else:
-        dataUtils.writeDataToFile(pd.DataFrame(optUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), args.model_type)
+    dataUtils.writeDataToFile(pd.DataFrame(utilStats, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), args.model_type)
+
+    logger.info('Finished')
