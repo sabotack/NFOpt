@@ -160,22 +160,18 @@ def writeDataToFile(data, type, ratioData=None):
         if not os.path.exists(RATIO_OUTPUT_DIR):
             os.makedirs(RATIO_OUTPUT_DIR)
 
+        filePath = ''
         timestamp = datetime.datetime.now().strftime("%Y%m%d")
 
         if ratioData is not None:
-            logger.info(f'Writing data to file...')
-            time = data['timestamp'][0][:3] + data['timestamp'][0][4:-6]
-            data.to_csv(f'{RATIO_OUTPUT_DIR}/{timestamp}_{type.value}_ratios_{time}.csv', mode='w', header=True, index=False)
-            logger.info(f'Finished writing data to file')
+            time = (data['timestamp'][0][:3] + data['timestamp'][0][4:-6]).lower()
+            filePath = f'{RATIO_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv'
         else:
-            logger.info(f'Writing data to file...')
-            data.to_csv(f'{DATA_OUTPUT_DIR}/{timestamp}_{type.value}.csv', mode='w', header=True, index=False)
-            logger.info(f'Finished writing data to file')
+            filePath = f'{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv'
+
+        logger.info(f'Writing data to file...')
+        data.to_csv(filePath, mode='w', header=True, index=False)
+        logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')
         sys.exit(1)
-
-
-class DataType(Enum):
-    BASELINE = 'baseline'
-    RATIOS = 'ratios'

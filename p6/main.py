@@ -1,13 +1,14 @@
+import argparse
 import gurobipy as gp
 from gurobipy import GRB
 
 import statistics as stats
 
+from p6.calc_type_enum import CalcType
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
 from p6.linearOptimization import LinearOptimization as linOpt
-from p6.linearOptimization.LinearOptimization import LinearOptimizationModel
 
 logger = log.setupCustomLogger(__name__)
 
@@ -23,20 +24,12 @@ def calcLinkUtil(links):
 
     return util
 
-def _optimizeAverageUtilization():
-    main(LinearOptimizationModel.averageUtilization)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model_type', choices=[CalcType.BASELINE.value, CalcType.AVERAGE.value, CalcType.MAX.value, CalcType.SQUARED.value], help='type of calculation to run')
+    args = parser.parse_args()
 
-def _optimizeMaxUtilization():
-    main(LinearOptimizationModel.maxUtilization)
-
-def _optimizeSquaredUtilization():
-    main(LinearOptimizationModel.squaredUtilization)
-
-def _baseline():
-    main(None)
-
-def main(optimizeType):
-    logger.info('Started, optimizeType: ' + str(optimizeType))
+    logger.info('Started, model_type: ' + str(args.model_type))
 
     flows = dataUtils.readFlows(DATA_DAY)
     links = dataUtils.readLinks()
@@ -72,54 +65,14 @@ def main(optimizeType):
                 links[linkKey]['listFlows'].append(flow)
 
         #run linear optimization or baseline calculations
-        if (optimizeType != None):
-            avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(optimizeType, links, flows[timestamp], traffic[timestamp], timestamp)
-            optUtil.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
-        else:
+        if (args.model_type == CalcType.BASELINE.value):
             linkUtil = calcLinkUtil(links)
             dailyUtil.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
+        else:
+            avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(args.model_type, links, flows[timestamp], traffic[timestamp], timestamp)
+            optUtil.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
 
-
-    if (optimizeType != None):
-        dataUtils.writeDataToFile(pd.DataFrame(optUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), optimizeType)
+    if (args.model_type == CalcType.BASELINE.value):
+        dataUtils.writeDataToFile(pd.DataFrame(dailyUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), args.model_type)
     else:
-        dataUtils.writeDataToFile(pd.DataFrame(dailyUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), dataUtils.DataType.BASELINE)
-    
-    # logger.debug(f"Flows: {len(flows)}")
-
-    # for flow in flows:
-    #     print(f"Flow: {flow}")
-    #     for path in flows[flow]:
-    #         print(f"-: {path}")
-    #     print("\n")
-
-    # # --- LINKS ---
-    # linksCapacity = {}
-    # linksCapacity['AB'] = 600
-    # linksCapacity['AC'] = 2000
-    # linksCapacity['BD'] = 500
-    # linksCapacity['BE'] = 600
-    # linksCapacity['CF'] = 1500
-    # linksCapacity['DG'] = 400
-    # linksCapacity['EG'] = 600
-    # linksCapacity['FG'] = 1500
-
-    # # --- PATHS ---
-    # flows = {}
-    # flows['AG'] = {}
-    # flows['AG'][0] = ['A', 'B', 'D', 'G']
-    # flows['AG'][1] = ['A', 'B', 'E', 'G']
-    # flows['AG'][2] = ['A', 'C', 'F', 'G']
-
-    # # --- TRAFFIC ---
-    # traffic = {}
-    # traffic['AG'] = 100
-
-    # # --- RATIOS ---
-
-    # logger.info('Populating routers hash from flows')
-    # routersHash = nwUtils.getRoutersHashFromFlows(flows)
-    
-    # logger.info('Calculating ratios')
-    # links = {}
-    # nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
+        dataUtils.writeDataToFile(pd.DataFrame(optUtil, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), args.model_type)

@@ -4,8 +4,8 @@ import gurobipy as gp
 
 from gurobipy import GRB
 from dotenv import load_dotenv
-from enum import Enum
 
+from p6.calc_type_enum import CalcType
 from p6.utils import log
 from p6.utils import data as dataUtils
 logger = log.setupCustomLogger(__name__)
@@ -18,15 +18,6 @@ options = {
     "WLSSECRET": os.getenv("WLSSECRET"),
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
-
-class LinearOptimizationModel(Enum):
-    """
-    Enum class for the linear optimization models.
-    """
-    averageUtilization = 'averageUtilization'
-    maxUtilization = 'maxUtilization'
-    squaredUtilization = 'squaredUtilization'
-
 
 def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
     """
@@ -61,13 +52,13 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars([(sd, pathNum) for sd in flows for pathNum in range(len(flows[sd]))], vtype=GRB.CONTINUOUS, name="PathRatios")
         match model:
-            case LinearOptimizationModel.averageUtilization:
+            case CalcType.AVERAGE.value:
                 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
                 m.setObjective(gp.quicksum((utilization[link]/links[link]['capacity'] for link in links)), GRB.MINIMIZE)
-            case LinearOptimizationModel.maxUtilization:
+            case CalcType.MAX.value:
                 max_utilization = m.addVar(vtype=GRB.CONTINUOUS, name="MaxUtilization")
                 m.setObjective(max_utilization, GRB.MINIMIZE)
-            case LinearOptimizationModel.squaredUtilization:
+            case CalcType.SQUARED.value:
                 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
                 m.setObjective(gp.quicksum((utilization[link]**2 for link in links)), GRB.MINIMIZE)
             case _:
@@ -87,11 +78,11 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
             m.addConstr(link_flow <= links[link]['capacity'], name=f"cap_{link}")
 
             match model:
-                case LinearOptimizationModel.averageUtilization: 
+                case CalcType.AVERAGE.value: 
                     m.addConstr(link_flow == links[link]['capacity'] * utilization[link], name=f"util_{link}")
-                case LinearOptimizationModel.maxUtilization:
+                case CalcType.MAX.value:
                     m.addConstr(link_flow / links[link]['capacity'] <= max_utilization, name=f"util_{link}")
-                case LinearOptimizationModel.squaredUtilization:
+                case CalcType.SQUARED.value:
                     m.addConstr(link_flow == utilization[link] * links[link]['capacity'], name=f"util_{link}")
                 case _:
                     raise ValueError(f'Invalid model: {model}')
@@ -151,3 +142,4 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
                     logger.error(c.constrName)
         else:
             logger.error('Optimization ended with status %d' % m.status)
+            
