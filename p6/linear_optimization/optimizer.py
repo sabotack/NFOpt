@@ -1,9 +1,9 @@
+from datetime import datetime
 import os
 import pandas as pd
 import gurobipy as gp
 
 from gurobipy import GRB
-from datetime import datetime
 from dotenv import load_dotenv
 
 from p6.calc_type_enum import CalcType
@@ -13,16 +13,16 @@ logger = log.setupCustomLogger(__name__)
 
 load_dotenv('variables.env')
 
-# Environment variables
+OPT_MODELS_OUTPUT_DIR = os.getenv("OPT_MODELS_OUTPUT_DIR")
+
+# Environment gurobi license variables
 options = {
     "WLSACCESSID": os.getenv("WLSACCESSID"),
     "WLSSECRET": os.getenv("WLSSECRET"),
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
 
-LOGGING_DIR = os.getenv('LOGGING_DIR')
-
-def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
+def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=False):
     """
     Runs the linear optimization model to calculate the link utilization and the average link utilization.
 
@@ -91,7 +91,13 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp):
         for sd in traffic:
             m.addConstr(path_ratios.sum(sd, '*') == 1, name=f"traffic_split_{sd}")
 
-        m.write(f"{model}.lp")
+        if savelp:
+            if not os.path.exists(OPT_MODELS_OUTPUT_DIR):
+                os.makedirs(OPT_MODELS_OUTPUT_DIR)
+
+            ts = datetime.now().strftime("%Y%m%d")
+            time = (timestamp[:3] + timestamp[4:-6]).lower()
+            m.write(f"{OPT_MODELS_OUTPUT_DIR}/{ts}_{model}_{time}.lp")
 
         logger.info('Started optimization...')
         m.optimize()
