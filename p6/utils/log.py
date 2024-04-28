@@ -13,7 +13,7 @@ def setupCustomLogger(name):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(process)d - %(message)s"
     formatter = logging.Formatter(format)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
