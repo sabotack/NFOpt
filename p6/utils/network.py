@@ -2,16 +2,20 @@ import os
 from p6.models.network import Router, Link
 
 from p6.utils import log
+
 logger = log.setupCustomLogger(__name__)
 
 import configparser
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read("config.ini")
 
 from dotenv import load_dotenv
-load_dotenv('variables.env')
 
-AVG_CAPACITY = int(os.getenv('AVERAGE_CAPACITY'))
+load_dotenv("variables.env")
+
+AVG_CAPACITY = int(os.getenv("AVERAGE_CAPACITY"))
+
 
 def getRoutersHashFromFlow(flow):
     """
@@ -28,19 +32,22 @@ def getRoutersHashFromFlow(flow):
     """
 
     routersHash = {}
-    
+
     for path in flow:
-        prevRouterName = ''
+        prevRouterName = ""
         for routerName in reversed(path):
             if routerName not in routersHash:
                 routersHash[routerName] = Router(routerName)
-            if prevRouterName != '':
-                routersHash[prevRouterName].addConnection(routersHash[routerName], False)
+            if prevRouterName != "":
+                routersHash[prevRouterName].addConnection(
+                    routersHash[routerName], False
+                )
                 routersHash[routerName].addConnection(routersHash[prevRouterName], True)
 
             prevRouterName = routerName
 
     return routersHash
+
 
 def getFlowLinks(routers, capacities):
     """
@@ -66,33 +73,36 @@ def getFlowLinks(routers, capacities):
     visited.append(endRouter)
     queue.append(endRouter)
 
-    logger.debug(f'Started traversing (endrouter: {endRouter.name})')
+    logger.debug(f"Started traversing (endrouter: {endRouter.name})")
 
     while queue:
         currentRouter = queue.pop(0)
 
         for ingressKey in currentRouter.ingress:
-            newLink = Link(currentRouter.ingress[ingressKey].name, currentRouter.name, 0)
+            newLink = Link(
+                currentRouter.ingress[ingressKey].name, currentRouter.name, 0
+            )
 
-            if(newLink.name not in capacities):
+            if newLink.name not in capacities:
                 newLink.capacity = AVG_CAPACITY
             else:
-                newLink.capacity = capacities[newLink.name]['capacity']
+                newLink.capacity = capacities[newLink.name]["capacity"]
 
-            if(currentRouter == endRouter):
+            if currentRouter == endRouter:
                 newLink.trafficRatio = 1 / len(currentRouter.ingress)
             else:
                 newLink.trafficRatio = _calcLinkRatio(flowLinks, currentRouter)
-            
+
             flowLinks[newLink.name] = newLink
 
             if currentRouter.ingress[ingressKey] not in visited:
                 visited.append(currentRouter.ingress[ingressKey])
                 queue.append(currentRouter.ingress[ingressKey])
-    
-    logger.debug(f'Finished traversing (endrouter: {endRouter.name})')
+
+    logger.debug(f"Finished traversing (endrouter: {endRouter.name})")
 
     return flowLinks
+
 
 def _getEndRouter(routers):
     """
@@ -107,6 +117,7 @@ def _getEndRouter(routers):
     for routerKey in routers:
         if len(routers[routerKey].egress) == 0:
             return routers[routerKey]
+
 
 def _calcLinkRatio(links, currentRouter):
     """
@@ -126,6 +137,7 @@ def _calcLinkRatio(links, currentRouter):
             sumEgress += links[linkKey].trafficRatio
 
     return sumEgress / len(currentRouter.ingress)
+
 
 def printRouterHash(routersHash):
     for routerKey in routersHash:
