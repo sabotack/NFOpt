@@ -10,6 +10,7 @@ class Router:
         else:
             self.ingress[link.name] = link
 
+
 class Link:
     def __init__(self, linkStart, linkEnd, capacity):
         self.linkStart = linkStart
@@ -17,4 +18,3 @@ class Link:
         self.capacity = capacity
         self.name = f"{linkStart}{linkEnd}"
         self.trafficRatio = 0
-        

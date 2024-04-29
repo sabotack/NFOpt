@@ -1,12 +1,14 @@
 import os
 import sys
 import pandas as pd
+import multiprocessing as mp
 
 from p6.utils import log
+from functools import partial
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv('variables.env')
+load_dotenv("variables.env")
 logger = log.setupCustomLogger(__name__)
 
 DATASET_PATH = os.getenv("DATASET_PATH")
@@ -15,7 +17,20 @@ DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
 DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
-RATIO_OUTPUT_DIR = os.getenv("RATIO_OUTPUT_DIR")
+RATIOS_OUTPUT_DIR = os.getenv("RATIOS_OUTPUT_DIR")
+
+
+def _process_group(chunk, group_func):
+    return chunk.groupby(["timestamp", "pathName"])["path"].apply(group_func)
+
+
+def _group_func(x):
+    return [path[1:-1].split(";") for path in x]
+
+
+def _merge_results(results):
+    return {k: v for result in results for k, v in result.items()}
+
 
 def readFlows(day):
     """
@@ -33,20 +48,51 @@ def readFlows(day):
     """
 
     try:
-        logger.info('START: reading flows...')
+        logger.info("START: reading flows...")
 
-        logger.info('Reading paths...')
-        dataFlows = pd.read_csv(f'{DATASET_PATH}/{DATASET_PATHS_PREFIX}{day}.csv', names=['timestamp', 'pathStart', 'pathEnd', 'path'], engine='pyarrow')
-        dataFlows['pathName'] = dataFlows['pathStart'] + dataFlows['pathEnd']
-        logger.info('Finished reading paths, number of paths: ' + str(len(dataFlows.index)))
-        
+        logger.info("Reading paths...")
+        dataFlows = pd.read_csv(
+            f"{DATASET_PATH}/{DATASET_PATHS_PREFIX}{day}.csv",
+            names=["timestamp", "pathStart", "pathEnd", "path"],
+            engine="pyarrow",
+        )
+        dataFlows["pathName"] = dataFlows["pathStart"] + dataFlows["pathEnd"]
+        logger.info(
+            "Finished reading paths, number of paths: " + str(len(dataFlows.index))
+        )
+
         # Grouping paths by timestamp and pathName, and splitting the path string into a list of paths
-        logger.debug('Grouping paths...')
-        grouped_flows = dataFlows.groupby(['timestamp', 'pathName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
-        logger.debug('Finished grouping paths')
+        logger.debug("Grouping paths...")
+
+        # Splitting data into chunks for multiprocessing
+        cpu_count = mp.cpu_count()
+        chunk_size = len(dataFlows) // cpu_count
+        logger.info(
+            f"Grouping in parallel | CPUs: {cpu_count} | chunk_size: {chunk_size} | len(dataFlows): {len(dataFlows)}"
+        )
+        chunks = [
+            (
+                dataFlows[i:]
+                if rangeIndex == cpu_count - 1
+                else dataFlows[i : i + chunk_size]
+            )
+            for rangeIndex, i in enumerate([i * chunk_size for i in range(cpu_count)])
+        ]
+
+        partial_process_group = partial(_process_group, group_func=_group_func)
+
+        # Create a pool of processes and apply the process_group function to each chunk
+        with mp.Pool() as pool:
+            results = pool.map(partial_process_group, chunks)
+
+        # Merge the results from all processes
+        grouped_flows = _merge_results(results)
+
+        # grouped_flows = dataFlows.groupby(['timestamp', 'pathName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
+        logger.debug("Finished grouping paths")
 
         # Constructing the final flows dictionary, only keeping paths with more than one router in path
-        logger.debug('Constructing flows dictionary...')
+        logger.debug("Constructing flows dictionary...")
         flows = {}
         for (timestamp, pathName), paths in grouped_flows.items():
             for path in paths:
@@ -56,11 +102,11 @@ def readFlows(day):
                     if timestamp not in flows:
                         flows[timestamp] = {}
                     flows[timestamp][pathName] = paths
-        logger.debug('Finished constructing flows dictionary')    
+        logger.debug("Finished constructing flows dictionary")
 
-        logger.info('END: reading flows, number of groups: ' + str(len(flows)))
+        logger.info("END: reading flows, number of groups: " + str(len(flows)))
     except Exception as e:
-        logger.error(f'Error reading flows: {e}')
+        logger.error(f"Error reading flows: {e}")
         sys.exit(1)
 
     return flows
@@ -76,21 +122,27 @@ def readLinks():
     """
 
     try:
-        logger.info('START: reading links...')
+        logger.info("START: reading links...")
 
-        logger.info('Reading links...')
-        dataCapacity = pd.read_csv(f'{DATASET_PATH}/{DATASET_LINKS_NAME}.csv.gz', compression="gzip", names=['linkStart', 'linkEnd', 'capacity'], skiprows=1, engine="pyarrow")
-        dataCapacity['linkName'] = dataCapacity['linkStart'] + dataCapacity['linkEnd']
-        dataCapacity.set_index('linkName', inplace=True)
-        links = dataCapacity.to_dict('index')
-        #remove links that start and end at the same router - update: this is not necessary cant find any duplicates
-        #copilot cooked here 🤨
-        #links = {k: v for k, v in links.items() if k[:5] != k[5:]}
-        logger.info('Finished reading links, number of links: ' + str(len(links)))
-        
-        logger.info('END: reading links')
+        logger.info("Reading links...")
+        dataCapacity = pd.read_csv(
+            f"{DATASET_PATH}/{DATASET_LINKS_NAME}.csv.gz",
+            compression="gzip",
+            names=["linkStart", "linkEnd", "capacity"],
+            skiprows=1,
+            engine="pyarrow",
+        )
+        dataCapacity["linkName"] = dataCapacity["linkStart"] + dataCapacity["linkEnd"]
+        dataCapacity.set_index("linkName", inplace=True)
+        links = dataCapacity.to_dict("index")
+        # remove links that start and end at the same router - update: this is not necessary cant find any duplicates
+        # copilot cooked here 🤨
+        # links = {k: v for k, v in links.items() if k[:5] != k[5:]}
+        logger.info("Finished reading links, number of links: " + str(len(links)))
+
+        logger.info("END: reading links")
     except Exception as e:
-        logger.error(f'Error reading links: {e}')
+        logger.error(f"Error reading links: {e}")
         sys.exit(1)
 
     return links
@@ -111,21 +163,29 @@ def readTraffic(day):
     """
 
     try:
-        logger.info('START: reading traffic...')
+        logger.info("START: reading traffic...")
 
-        logger.info('Started reading traffic...')
-        dataTraffic = pd.read_csv(f'{DATASET_PATH}/{DATASET_TRAFFIC_PREFIX}{day}.csv', names=['timestamp', 'flowStart', 'flowEnd', 'traffic'], engine='pyarrow')
-        dataTraffic['flow'] = dataTraffic['flowStart'] + dataTraffic['flowEnd']
-        dataTraffic = dataTraffic.drop(['flowStart','flowEnd'], axis=1)
-        logger.info('Finished reading traffic, number of flows: ' + str(len(dataTraffic.index)))
-        
+        logger.info("Started reading traffic...")
+        dataTraffic = pd.read_csv(
+            f"{DATASET_PATH}/{DATASET_TRAFFIC_PREFIX}{day}.csv",
+            names=["timestamp", "flowStart", "flowEnd", "traffic"],
+            engine="pyarrow",
+        )
+        dataTraffic["flow"] = dataTraffic["flowStart"] + dataTraffic["flowEnd"]
+        dataTraffic = dataTraffic.drop(["flowStart", "flowEnd"], axis=1)
+        logger.info(
+            "Finished reading traffic, number of flows: " + str(len(dataTraffic.index))
+        )
+
         # Grouping traffic by timestamp and flow
-        logger.debug('Grouping traffic...')
-        grouped_traffic = dataTraffic.groupby(['timestamp', 'flow'])['traffic'].first().to_dict()
-        logger.debug('Finished grouping traffic')
+        logger.debug("Grouping traffic...")
+        grouped_traffic = (
+            dataTraffic.groupby(["timestamp", "flow"])["traffic"].first().to_dict()
+        )
+        logger.debug("Finished grouping traffic")
 
         # Constructing the final traffic dictionary
-        logger.debug('Constructing traffic dictionary...')
+        logger.debug("Constructing traffic dictionary...")
         traffic = {}
         for (timestamp, flow), traffic_value in grouped_traffic.items():
             if timestamp not in traffic:
@@ -134,11 +194,11 @@ def readTraffic(day):
             if flow[:5] == flow[5:]:
                 continue
             traffic[timestamp][flow] = traffic_value
-        logger.debug('Finished constructing traffic dictionary')
+        logger.debug("Finished constructing traffic dictionary")
 
-        logger.info('END: reading traffic, number of groups: ' + str(len(traffic)))
+        logger.info("END: reading traffic, number of groups: " + str(len(traffic)))
     except Exception as e:
-        logger.error(f'Error reading traffic: {e}')
+        logger.error(f"Error reading traffic: {e}")
         sys.exit(1)
 
     return traffic
@@ -153,25 +213,26 @@ def writeDataToFile(data, type, ratioData=None):
     #### data: pandas.DataFrame
     The daily utilization data to write to a file.
     """
-    
+
     try:
         if not os.path.exists(DATA_OUTPUT_DIR):
             os.makedirs(DATA_OUTPUT_DIR)
-        if not os.path.exists(RATIO_OUTPUT_DIR):
-            os.makedirs(RATIO_OUTPUT_DIR)
 
-        filePath = ''
+        filePath = ""
         timestamp = datetime.now().strftime("%Y%m%d")
 
         if ratioData is not None:
-            time = (data['timestamp'][0][:3] + data['timestamp'][0][4:-6]).lower()
-            filePath = f'{RATIO_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv'
-        else:
-            filePath = f'{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv'
+            if not os.path.exists(RATIOS_OUTPUT_DIR):
+                os.makedirs(RATIOS_OUTPUT_DIR)
 
-        logger.info(f'Writing data to file...')
-        data.to_csv(filePath, mode='w', header=True, index=False)
-        logger.info(f'Finished writing data to file')
+            time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
+            filePath = f"{RATIOS_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv"
+        else:
+            filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+
+        logger.info(f"Writing data to file...")
+        data.to_csv(filePath, mode="w", header=True, index=False)
+        logger.info(f"Finished writing data to file")
     except Exception as e:
-        logger.error(f'Error writing data to file: {e}')
+        logger.error(f"Error writing data to file: {e}")
         sys.exit(1)
