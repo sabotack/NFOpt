@@ -70,7 +70,8 @@ def readFlows(day):
         logger.info(
             f"Grouping in parallel | CPUs: {cpu_count} | chunk_size: {chunk_size} | len(dataFlows): {len(dataFlows)}"
         )
-        chunks = [(
+        chunks = [
+            (
                 dataFlows[i:]
                 if rangeIndex == cpu_count - 1
                 else dataFlows[i : i + chunk_size]
