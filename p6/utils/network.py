@@ -1,5 +1,5 @@
 import os
-from p6.network_model import Router, Link
+from p6.models.network import Router, Link
 
 from p6.utils import log
 logger = log.setupCustomLogger(__name__)

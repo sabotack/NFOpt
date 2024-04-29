@@ -1,8 +1,9 @@
-import datetime
 import os
 import sys
 import pandas as pd
+
 from p6.utils import log
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv('variables.env')
@@ -14,7 +15,7 @@ DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
 DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
-DATA_OUTPUT_NAME = os.getenv("DATA_OUTPUT_NAME")
+RATIO_OUTPUT_DIR = os.getenv("RATIO_OUTPUT_DIR")
 
 def readFlows(day):
     """
@@ -143,24 +144,33 @@ def readTraffic(day):
     return traffic
 
 
-def writeDataToFile(dailyUtil):
+def writeDataToFile(data, type, ratioData=None):
     """
     Writes the daily utilization data to a CSV file.
 
     ### Parameters:
     ----------
-    #### dailyUtil: pandas.DataFrame
+    #### data: pandas.DataFrame
     The daily utilization data to write to a file.
     """
     
     try:
         if not os.path.exists(DATA_OUTPUT_DIR):
             os.makedirs(DATA_OUTPUT_DIR)
+        if not os.path.exists(RATIO_OUTPUT_DIR):
+            os.makedirs(RATIO_OUTPUT_DIR)
 
-        timestamp = datetime.datetime.now().strftime("%Y%m%d")
-        
+        filePath = ''
+        timestamp = datetime.now().strftime("%Y%m%d")
+
+        if ratioData is not None:
+            time = (data['timestamp'][0][:3] + data['timestamp'][0][4:-6]).lower()
+            filePath = f'{RATIO_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv'
+        else:
+            filePath = f'{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv'
+
         logger.info(f'Writing data to file...')
-        dailyUtil.to_csv(f'{DATA_OUTPUT_DIR}/{DATA_OUTPUT_NAME}_{timestamp}.csv', mode='w', header=True, index=False)
+        data.to_csv(filePath, mode='w', header=True, index=False)
         logger.info(f'Finished writing data to file')
     except Exception as e:
         logger.error(f'Error writing data to file: {e}')

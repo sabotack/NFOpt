@@ -1,13 +1,11 @@
-import gurobipy as gp
-from gurobipy import GRB
-
+import argparse
 import statistics as stats
 
+from p6.calc_type_enum import CalcType
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
-from p6.linearOptimization import LinearOptimization as linOpt
-from p6.linearOptimization.LinearOptimization import LinearOptimizationModel
+from p6.linear_optimization import optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
@@ -15,7 +13,6 @@ import pandas as pd
 
 DATA_DAY = 2
 
-# --- FUNCTIONS ---
 def calcLinkUtil(links):
     util = {}
 
@@ -25,24 +22,30 @@ def calcLinkUtil(links):
     return util
 
 def main():
-    logger.info('Started')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model_type', choices=[CalcType.BASELINE.value, CalcType.AVERAGE.value, CalcType.MAX.value, CalcType.SQUARED.value], help='type of calculation to run')
+    args = parser.parse_args()
+
+    logger.info('Started, model_type: ' + str(args.model_type))
 
     flows = dataUtils.readFlows(DATA_DAY)
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
-    dailyUtil = pd.DataFrame(columns=['timestamp', 'min_util', 'max_util', 'avg_util'])
+    utilStats = []
 
     for timestamp in flows:
-        # Reset totalTraffic for all links in this timestamp
+        # Reset totalTraffic and listFlows for all links in this timestamp
         for linkKey in links:
             links[linkKey]['totalTraffic'] = 0
+            links[linkKey]['listFlows'] = []
 
-        for i, flow in enumerate(flows[timestamp]):
+        logger.info(f'Processing {timestamp} with {len(flows[timestamp])} flows...')
+        for flow in flows[timestamp]:
             routers = nwUtils.getRoutersHashFromFlow(flows[timestamp][flow])
             flowLinks = nwUtils.getFlowLinks(routers, links)
 
-            # Update links with traffic
+            # Update links with traffic, and if link is new, add it to links
             for linkKey in flowLinks:
                 if(linkKey in links):
                     links[linkKey]['totalTraffic'] += traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
@@ -53,61 +56,19 @@ def main():
                         'capacity': flowLinks[linkKey].capacity,
                         'totalTraffic': traffic[timestamp][flow] * flowLinks[linkKey].trafficRatio
                         }
+                    links[linkKey]['listFlows'] = []
+                
+                # Add this flow to the list of flows for this link
+                links[linkKey]['listFlows'].append(flow)
 
-            # Log number of processed flows
-            if(i % 10000 == 0):
-                logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
-            if(i == len(flows[timestamp]) - 1):
-                logger.info(f'Processed {timestamp} {i+1} flows of {len(flows[timestamp])}...')
-            
-    
-        linkUtil = calcLinkUtil(links)
-        dailyUtil.loc[len(dailyUtil.index)] = [timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())] 
+        # Run linear optimization or baseline calculations
+        if (args.model_type == CalcType.BASELINE.value):
+            linkUtil = calcLinkUtil(links)
+            utilStats.append([timestamp, min(linkUtil.values()), max(linkUtil.values()), stats.mean(linkUtil.values())]) 
+        else:
+            avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(args.model_type, links, flows[timestamp], traffic[timestamp], timestamp)
+            utilStats.append([timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil])
 
-        #run linear optimization model
-        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.averageUtilization, links, flows[timestamp], traffic[timestamp])
-        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.maxUtilization, links, flows[timestamp], traffic[timestamp])
-        #linOpt.runLinearOptimizationModel(LinearOptimizationModel.squaredUtilization, links, flows[timestamp], traffic[timestamp])
-    
-    dataUtils.writeDataToFile(dailyUtil)
+    dataUtils.writeDataToFile(pd.DataFrame(utilStats, columns=['timestamp', 'min_util', 'max_util', 'avg_util']), args.model_type)
 
-   
-
-    # logger.debug(f"Flows: {len(flows)}")
-
-    # for flow in flows:
-    #     print(f"Flow: {flow}")
-    #     for path in flows[flow]:
-    #         print(f"-: {path}")
-    #     print("\n")
-
-    # # --- LINKS ---
-    # linksCapacity = {}
-    # linksCapacity['AB'] = 600
-    # linksCapacity['AC'] = 2000
-    # linksCapacity['BD'] = 500
-    # linksCapacity['BE'] = 600
-    # linksCapacity['CF'] = 1500
-    # linksCapacity['DG'] = 400
-    # linksCapacity['EG'] = 600
-    # linksCapacity['FG'] = 1500
-
-    # # --- PATHS ---
-    # flows = {}
-    # flows['AG'] = {}
-    # flows['AG'][0] = ['A', 'B', 'D', 'G']
-    # flows['AG'][1] = ['A', 'B', 'E', 'G']
-    # flows['AG'][2] = ['A', 'C', 'F', 'G']
-
-    # # --- TRAFFIC ---
-    # traffic = {}
-    # traffic['AG'] = 100
-
-    # # --- RATIOS ---
-
-    # logger.info('Populating routers hash from flows')
-    # routersHash = nwUtils.getRoutersHashFromFlows(flows)
-    
-    # logger.info('Calculating ratios')
-    # links = {}
-    # nwUtils.recCalcRatios(links, routersHash['G'], linksCapacity)
+    logger.info('Finished')
