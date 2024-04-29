@@ -217,13 +217,14 @@ def writeDataToFile(data, type, ratioData=None):
     try:
         if not os.path.exists(DATA_OUTPUT_DIR):
             os.makedirs(DATA_OUTPUT_DIR)
-        if not os.path.exists(RATIOS_OUTPUT_DIR):
-            os.makedirs(RATIOS_OUTPUT_DIR)
 
         filePath = ""
         timestamp = datetime.now().strftime("%Y%m%d")
 
         if ratioData is not None:
+            if not os.path.exists(RATIOS_OUTPUT_DIR):
+                os.makedirs(RATIOS_OUTPUT_DIR)
+
             time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
             filePath = f"{RATIOS_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv"
         else:
