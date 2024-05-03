@@ -93,7 +93,22 @@ def main():
         action="store_true",
         help="save linear optimization models",
     )
+    parser.add_argument(
+        "-ur", "--use-ratios",
+        nargs=2,
+        metavar=("TYPE", "DAY"),
+        help="use existing path ratios for calculations"
+    )
     args = parser.parse_args()
+
+    if args.use_ratios:
+        ratioType, day = args.use_ratios
+        if ratioType not in [CalcType.AVERAGE.value, CalcType.MAX.value, CalcType.SQUARED.value]:
+            parser.error("Invalid ratio type. Please use 'average', 'max' or 'squared'.")
+        if day not in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
+            parser.error("Invalid day. Please use a day of the week.")
+        if args.model_type != CalcType.BASELINE.value:
+            parser.error("Cannot use existing path ratios with the specified model type.")
 
     # Set start method to spawn to avoid issues with multiprocessing on Windows
     set_start_method("spawn")
