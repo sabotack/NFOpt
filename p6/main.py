@@ -95,14 +95,16 @@ def main():
     )
     parser.add_argument(
         "-ur", "--use-ratios",
-        nargs=2,
-        metavar=("TYPE", "DAY"),
+        nargs=3,
+        metavar=("DATE", "TYPE", "DAY"),
         help="use existing path ratios for calculations"
     )
     args = parser.parse_args()
 
     if args.use_ratios:
-        ratioType, day = args.use_ratios
+        date, ratioType, day = args.use_ratios
+        if not date.isdigit() or len(date) != 8 or int(date[4:6]) > 12 or int(date[6:]) > 31:
+            parser.error("Invalid date. Please use a date in the format YYYYMMDD.")
         if ratioType not in [CalcType.AVERAGE.value, CalcType.MAX.value, CalcType.SQUARED.value]:
             parser.error("Invalid ratio type. Please use 'average', 'max' or 'squared'.")
         if day not in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
