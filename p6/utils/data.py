@@ -18,7 +18,7 @@ DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
 RATIOS_OUTPUT_DIR = os.getenv("RATIOS_OUTPUT_DIR")
-
+LINKS_OUTPUT_DIR = os.getenv("LINKS_OUTPUT_DIR")
 
 def _process_group(chunk, group_func):
     return chunk.groupby(["timestamp", "pathName"])["path"].apply(group_func)
@@ -204,7 +204,7 @@ def readTraffic(day):
     return traffic
 
 
-def writeDataToFile(data, type, ratioData=None):
+def writeDataToFile(data, type, outputFile):
     """
     Writes the daily utilization data to a CSV file.
 
@@ -221,15 +221,33 @@ def writeDataToFile(data, type, ratioData=None):
         filePath = ""
         timestamp = datetime.now().strftime("%Y%m%d")
 
-        if ratioData is not None:
-            if not os.path.exists(RATIOS_OUTPUT_DIR):
-                os.makedirs(RATIOS_OUTPUT_DIR)
+        match outputFile:
+            case "overviewData":
+                filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+            case "ratioData": 
+                # create directory if it does not exist
+                if not os.path.exists(RATIOS_OUTPUT_DIR):
+                    os.makedirs(RATIOS_OUTPUT_DIR)
 
-            time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
-            filePath = f"{RATIOS_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv"
-        else:
-            filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+                filePath = RATIOS_OUTPUT_DIR+'/'+type    
+                if not os.path.exists(filePath):
+                    os.makedirs(filePath)
 
+                time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
+                filePath = f"{RATIOS_OUTPUT_DIR}/{type}/{timestamp}_{time}_ratios.csv"
+            case "linkData": 
+                if not os.path.exists(LINKS_OUTPUT_DIR):
+                    os.makedirs(LINKS_OUTPUT_DIR)
+
+                filePath = LINKS_OUTPUT_DIR+'/'+type
+                if not os.path.exists(filePath):
+                    os.makedirs(filePath)
+                
+                time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
+                filePath = f"{LINKS_OUTPUT_DIR}/{type}/{timestamp}_{time}_links.csv"
+            case _:
+                raise ValueError(f"Invalid output file: {outputFile}")
+            
         logger.info(f"Writing data to file...")
         data.to_csv(filePath, mode="w", header=True, index=False)
         logger.info(f"Finished writing data to file")
