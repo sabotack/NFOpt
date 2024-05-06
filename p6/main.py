@@ -61,6 +61,12 @@ def process_flows_hour(timestamp, flows, traffic, args, linksCopy):
     # Run linear optimization or baseline calculations
     if args.model_type == CalcType.BASELINE.value:
         linkUtil = calcLinkUtil(links)
+        dataUtils.writeDataToFile(
+            pd.DataFrame(linkUtil.items(), columns=["link", "util"]),
+            "linkUtil",
+            True,
+            timestamp,
+        )
         return [
             timestamp,
             min(linkUtil.values()),

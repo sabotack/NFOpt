@@ -17,9 +17,12 @@ pandas = "^2.2.1"
 pyarrow = "^15.0.2"
 python-dotenv = "^1.0.1"
 black = "^24.4.2"
+matplotlib = "^3.8.4"
 
 [tool.poetry.scripts]
 p6 = "p6.main:main"
+graph = "p6.utils.visuals:plotAllData"
+links = "p6.utils.visuals:plotLinks"
 
 [build-system]
 requires = ["poetry-core"]
