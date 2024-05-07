@@ -204,6 +204,54 @@ def readTraffic(day):
     return traffic
 
 
+def readRatios(date, type, day):
+    """
+    Reads the path ratios from the dataset and returns a dictionary with the ratios grouped by timestamp and pathName.
+
+    ### Parameters:
+    ----------
+    #### date: str
+    The date of the ratios to read in format YYYYMMDD.
+    #### type: str
+    The type of ratios to read.
+    #### day: str
+    The day of the week of the ratios to read.
+
+    ### Returns:
+    ----------
+    A dictionary with the ratios grouped by timestamp and pathName.
+    """
+
+    try:
+        logger.info("START: reading ratios...")
+        ratios = {}
+        for i in range(24):
+            timestamp = ''
+            iStr = "%02d" % i
+            logger.info(f"Reading ratios for hour {iStr} ...")
+
+            dataRatios = pd.read_csv(
+                f"{RATIOS_OUTPUT_DIR}/{date}_{type}_{day}{iStr}_ratios.csv",
+                names=["timestamp", "flowName", "pathNum", "ratio"],
+                engine="pyarrow",
+            )
+            timestamp = dataRatios.iloc[1]["timestamp"]
+            dataRatios.drop(["timestamp"], axis=1, inplace=True)
+            dataRatios.set_index(["flowName", "pathNum"], inplace=True)
+
+            ratios[timestamp] = dataRatios.to_dict()["ratio"]
+            logger.info(
+                f"Finished reading ratios for hour {iStr}, timestamp: {timestamp}, number of ratios: {str(len(dataRatios.index))}"
+            )
+
+        logger.info("END: reading ratios, number of groups: " + str(len(ratios)))
+    except Exception as e:
+        logger.error(f"Error reading ratios: {e}")
+        sys.exit(1)
+
+    return ratios
+
+
 def writeDataToFile(data, type, ratioData=None):
     """
     Writes the daily utilization data to a CSV file.

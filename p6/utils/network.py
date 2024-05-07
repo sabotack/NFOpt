@@ -49,7 +49,7 @@ def getRoutersHashFromFlow(flow):
     return routersHash
 
 
-def getFlowLinks(routers, capacities):
+def getFlowLinks(routers, capacities, ratios):
     """
     This function creates a hash of links from routers by traversing breadth-first, and calculates the traffic ratio for each link.
 
@@ -65,7 +65,8 @@ def getFlowLinks(routers, capacities):
     A hash of links.
     """
 
-    endRouter = _getEndRouter(routers)
+    (startRouter, endRouter) = _getEndRouter(routers)
+    flowName = startRouter.name + endRouter.name
     flowLinks = {}
     visited = []
     queue = []
@@ -78,7 +79,7 @@ def getFlowLinks(routers, capacities):
     while queue:
         currentRouter = queue.pop(0)
 
-        for ingressKey in currentRouter.ingress:
+        for i, ingressKey in enumerate(currentRouter.ingress):
             newLink = Link(
                 currentRouter.ingress[ingressKey].name, currentRouter.name, 0
             )
@@ -89,7 +90,10 @@ def getFlowLinks(routers, capacities):
                 newLink.capacity = capacities[newLink.name]["capacity"]
 
             if currentRouter == endRouter:
-                newLink.trafficRatio = 1 / len(currentRouter.ingress)
+                if ratios is not None:
+                    newLink.trafficRatio = float(ratios[flowName, str(i)])
+                else:
+                    newLink.trafficRatio = 1 / len(currentRouter.ingress)
             else:
                 newLink.trafficRatio = _calcLinkRatio(flowLinks, currentRouter)
 
@@ -114,10 +118,16 @@ def _getEndRouter(routers):
         A hash of routers.
     """
 
+    startRouter = None
+    endRouter = None
+
     for routerKey in routers:
         if len(routers[routerKey].egress) == 0:
-            return routers[routerKey]
-
+            endRouter = routers[routerKey]
+        if len(routers[routerKey].ingress) == 0:
+            startRouter = routers[routerKey]
+    
+    return (startRouter, endRouter)
 
 def _calcLinkRatio(links, currentRouter):
     """

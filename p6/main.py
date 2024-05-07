@@ -1,4 +1,5 @@
 import argparse
+import sys
 import pandas as pd
 import statistics as stats
 import multiprocessing as mp
@@ -27,7 +28,7 @@ def calcLinkUtil(links):
     return util
 
 
-def process_flows_hour(timestamp, flows, traffic, args, linksCopy):
+def process_flows_hour(timestamp, flows, traffic, args, linksCopy, ratios=None):
     links = linksCopy
 
     # Initialize totalTraffic and listFlows for all links
@@ -38,7 +39,7 @@ def process_flows_hour(timestamp, flows, traffic, args, linksCopy):
     logger.info(f"Processing {timestamp} with {len(flows)} flows...")
     for flow in flows:
         routers = nwUtils.getRoutersHashFromFlow(flows[flow])
-        flowLinks = nwUtils.getFlowLinks(routers, links)
+        flowLinks = nwUtils.getFlowLinks(routers, links, ratios)
 
         # Update links with traffic, and if link is new, add it to links
         for linkKey in flowLinks:
@@ -108,7 +109,7 @@ def main():
         if ratioType not in [CalcType.AVERAGE.value, CalcType.MAX.value, CalcType.SQUARED.value]:
             parser.error("Invalid ratio type. Please use 'average', 'max' or 'squared'.")
         if day not in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
-            parser.error("Invalid day. Please use a day of the week.")
+            parser.error("Invalid day. Please use 'mon', 'tue', 'wed', 'thu', 'fri', 'sat' or 'sun'.")
         if args.model_type != CalcType.BASELINE.value:
             parser.error("Cannot use existing path ratios with the specified model type.")
 
@@ -122,13 +123,27 @@ def main():
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
+    inputArr = []
+    if args.use_ratios:
+        date, ratioType, day = args.use_ratios
+        ratios = dataUtils.readRatios(date, ratioType, day)
+
+        # for timestamp in flows:
+        #     print(ratios[timestamp])
+        #     break
+        #     for i, flowKey in enumerate(flows[timestamp]):
+        #         if i >= 5:
+        #             break
+        #         print(ratios[timestamp][flowKey])
+        # sys.exit(0)
+        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows] 
+    else:
+        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows]
+
     with mp.Pool() as pool:
         results = pool.starmap(
             process_flows_hour,
-            [
-                (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
-                for timestamp in flows
-            ],
+            inputArr,
         )
 
     logger.info("Finished processing all timestamps!")
