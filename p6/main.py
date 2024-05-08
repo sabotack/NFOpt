@@ -105,7 +105,7 @@ def main():
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
-    with mp.Pool() as pool:
+    with mp.Pool(processes=dataUtils.CPU_THREADS) as pool:
         results = pool.starmap(
             process_flows_hour,
             [
