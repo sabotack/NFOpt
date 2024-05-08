@@ -25,15 +25,16 @@ if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
 else:
     CPU_THREADS = mp.cpu_count()
 
-def _process_group(chunk, group_func):
+
+def _processGroup(chunk, group_func):
     return chunk.groupby(["timestamp", "pathName"])["path"].apply(group_func)
 
 
-def _group_func(x):
+def _groupFunc(x):
     return [path[1:-1].split(";") for path in x]
 
 
-def _merge_results(results):
+def _mergeResults(results):
     return {k: v for result in results for k, v in result.items()}
 
 
@@ -70,27 +71,27 @@ def readFlows(day):
         logger.debug("Grouping paths...")
 
         # Splitting data into chunks for multiprocessing
-        chunk_size = len(dataFlows) // CPU_THREADS
+        chunkSize = len(dataFlows) // CPU_THREADS
         logger.info(
-            f"Grouping using CPU threads: {CPU_THREADS} | chunk_size: {chunk_size} | len(dataFlows): {len(dataFlows)}"
+            f"Grouping using CPU threads: {CPU_THREADS} | chunkSize: {chunkSize} | len(dataFlows): {len(dataFlows)}"
         )
         chunks = [
             (
                 dataFlows[i:]
                 if rangeIndex == CPU_THREADS - 1
-                else dataFlows[i : i + chunk_size]
+                else dataFlows[i : i + chunkSize]
             )
-            for rangeIndex, i in enumerate([i * chunk_size for i in range(CPU_THREADS)])
+            for rangeIndex, i in enumerate([i * chunkSize for i in range(CPU_THREADS)])
         ]
 
-        partial_process_group = partial(_process_group, group_func=_group_func)
+        partialProcessGroup = partial(_processGroup, group_func=_groupFunc)
 
         # Create a pool of processes and apply the process_group function to each chunk
         with mp.Pool(processes=CPU_THREADS) as pool:
-            results = pool.map(partial_process_group, chunks)
+            results = pool.map(partialProcessGroup, chunks)
 
         # Merge the results from all processes
-        grouped_flows = _merge_results(results)
+        grouped_flows = _mergeResults(results)
 
         # grouped_flows = dataFlows.groupby(['timestamp', 'pathName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
         logger.debug("Finished grouping paths")
