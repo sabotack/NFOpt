@@ -31,7 +31,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
     ### Parameters:
     ----------
     #### model: string
-    The optimization model to run, can be 'averageUtilization', 'maxUtilization', or 'squaredUtilization'.
+    The optimization model to run, can be 'averageUtilization', 'maxUtilization', or 'squared'.
 
     #### links: dict
     The links in the network, indexed by linkName.
@@ -148,10 +148,11 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                     ratioData, columns=["timestamp", "flowName", "pathNum", "ratio"]
                 ),
                 model,
-                True,
+                "ratioData",
             )
 
             # Calculate average, min and max link utilization
+            linkData = []
             totalLinkUtil = 0
             minLinkUtil = 0
             maxLinkUtil = 0
@@ -167,6 +168,14 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                     for sd in links[link]["listFlows"]
                     for pathNum in range(len(flows[sd]))
                 )
+                linkData.append(
+                    [
+                        timestamp,
+                        link,
+                        links[link]["capacity"],
+                        link_flow / links[link]["capacity"] * 100,
+                    ]
+                )
                 totalLinkUtil += link_flow / links[link]["capacity"] * 100
 
                 # Update min and max link utilization
@@ -174,6 +183,15 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                     minLinkUtil = link_flow / links[link]["capacity"] * 100
                 if (link_flow / links[link]["capacity"] * 100) > maxLinkUtil:
                     maxLinkUtil = link_flow / links[link]["capacity"] * 100
+
+            dataUtils.writeDataToFile(
+                pd.DataFrame(
+                    linkData,
+                    columns=["timestamp", "linkName", "capacity", "utilization (%)"],
+                ),
+                model,
+                "linkData",
+            )
 
             avgLinkUtil = totalLinkUtil / len(links)
             logger.info(f"Average link utilization: {avgLinkUtil}% for model {model}")
