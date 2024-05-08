@@ -137,7 +137,6 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
             m.write(f"{OPT_MODELS_OUTPUT_DIR}/{ts}_{model}_{time}.lp")
 
         logger.info("Started optimization...")
-        m.write("modelnewtestwwww.lp")
         m.optimize()
         logger.info("Finished optimization")
 
