@@ -230,30 +230,30 @@ def writeDataToFile(data, type, outputFile):
         match outputFile:
             case "overviewData":
                 filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
-            case "ratioData": 
+            case "ratioData":
                 # create directory if it does not exist
                 if not os.path.exists(RATIOS_OUTPUT_DIR):
                     os.makedirs(RATIOS_OUTPUT_DIR)
 
-                filePath = RATIOS_OUTPUT_DIR+'/'+type    
+                filePath = RATIOS_OUTPUT_DIR + "/" + type
                 if not os.path.exists(filePath):
                     os.makedirs(filePath)
 
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
                 filePath = f"{RATIOS_OUTPUT_DIR}/{type}/{timestamp}_{time}_ratios.csv"
-            case "linkData": 
+            case "linkData":
                 if not os.path.exists(LINKS_OUTPUT_DIR):
                     os.makedirs(LINKS_OUTPUT_DIR)
 
-                filePath = LINKS_OUTPUT_DIR+'/'+type
+                filePath = LINKS_OUTPUT_DIR + "/" + type
                 if not os.path.exists(filePath):
                     os.makedirs(filePath)
-                
+
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
                 filePath = f"{LINKS_OUTPUT_DIR}/{type}/{timestamp}_{time}_links.csv"
             case _:
                 raise ValueError(f"Invalid output file: {outputFile}")
-            
+
         logger.info(f"Writing data to file...")
         data.to_csv(filePath, mode="w", header=True, index=False)
         logger.info(f"Finished writing data to file")
