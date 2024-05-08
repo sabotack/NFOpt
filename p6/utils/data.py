@@ -19,6 +19,11 @@ DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
 RATIOS_OUTPUT_DIR = os.getenv("RATIOS_OUTPUT_DIR")
 
+CPU_THREADS = os.getenv("CPU_THREADS")
+if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
+    CPU_THREADS = int(CPU_THREADS)
+else:
+    CPU_THREADS = mp.cpu_count()
 
 def _process_group(chunk, group_func):
     return chunk.groupby(["timestamp", "pathName"])["path"].apply(group_func)
@@ -65,24 +70,23 @@ def readFlows(day):
         logger.debug("Grouping paths...")
 
         # Splitting data into chunks for multiprocessing
-        cpu_count = mp.cpu_count()
-        chunk_size = len(dataFlows) // cpu_count
+        chunk_size = len(dataFlows) // CPU_THREADS
         logger.info(
-            f"Grouping in parallel | CPUs: {cpu_count} | chunk_size: {chunk_size} | len(dataFlows): {len(dataFlows)}"
+            f"Grouping using CPU threads: {CPU_THREADS} | chunk_size: {chunk_size} | len(dataFlows): {len(dataFlows)}"
         )
         chunks = [
             (
                 dataFlows[i:]
-                if rangeIndex == cpu_count - 1
+                if rangeIndex == CPU_THREADS - 1
                 else dataFlows[i : i + chunk_size]
             )
-            for rangeIndex, i in enumerate([i * chunk_size for i in range(cpu_count)])
+            for rangeIndex, i in enumerate([i * chunk_size for i in range(CPU_THREADS)])
         ]
 
         partial_process_group = partial(_process_group, group_func=_group_func)
 
         # Create a pool of processes and apply the process_group function to each chunk
-        with mp.Pool() as pool:
+        with mp.Pool(processes=CPU_THREADS) as pool:
             results = pool.map(partial_process_group, chunks)
 
         # Merge the results from all processes
