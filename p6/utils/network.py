@@ -34,15 +34,25 @@ def getRoutersHashFromFlow(flow):
     routersHash = {}
 
     for path in flow:
+        pathStr = ";".join(path)
         prevRouterName = ""
+
+        # Go through the routers in the path in reverse to get the correct order of routers
         for routerName in reversed(path):
             if routerName not in routersHash:
                 routersHash[routerName] = Router(routerName)
+
+            # Add the current path string to the router if it does not exist in the array
+            if pathStr not in routersHash[routerName].paths:
+                routersHash[routerName].addPath(pathStr)
+
             if prevRouterName != "":
                 routersHash[prevRouterName].addConnection(
-                    routersHash[routerName], False
+                    routersHash[routerName], isEgress=False
                 )
-                routersHash[routerName].addConnection(routersHash[prevRouterName], True)
+                routersHash[routerName].addConnection(
+                    routersHash[prevRouterName], isEgress=True
+                )
 
             prevRouterName = routerName
 
@@ -79,7 +89,7 @@ def getFlowLinks(routers, capacities, ratios):
     while queue:
         currentRouter = queue.pop(0)
 
-        for i, ingressKey in enumerate(currentRouter.ingress):
+        for ingressKey in currentRouter.ingress:
             newLink = Link(
                 currentRouter.ingress[ingressKey].name, currentRouter.name, 0
             )
@@ -90,8 +100,11 @@ def getFlowLinks(routers, capacities, ratios):
                 newLink.capacity = capacities[newLink.name]["capacity"]
 
             if currentRouter == endRouter:
+                newLink.trafficRatio = 0
                 if ratios is not None:
-                    newLink.trafficRatio = float(ratios[flowName, str(i)])
+                    for path in currentRouter.ingress[ingressKey].paths:
+                        # logger.info(f"Found ratio for {flowName} {path}")
+                        newLink.trafficRatio += float(ratios[flowName, path])
                 else:
                     newLink.trafficRatio = 1 / len(currentRouter.ingress)
             else:
@@ -126,8 +139,9 @@ def _getEndRouter(routers):
             endRouter = routers[routerKey]
         if len(routers[routerKey].ingress) == 0:
             startRouter = routers[routerKey]
-    
+
     return (startRouter, endRouter)
+
 
 def _calcLinkRatio(links, currentRouter):
     """
@@ -156,4 +170,6 @@ def printRouterHash(routersHash):
             print(f"-Ingress:{routersHash[routerKey].ingress[ingressKey].name}")
         for egressKey in routersHash[routerKey].egress:
             print(f"-Egress:{routersHash[routerKey].egress[egressKey].name}")
+        for path in routersHash[routerKey].paths:
+            print(f"-Path:{path}")
         print("")

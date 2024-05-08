@@ -204,7 +204,7 @@ def readTraffic(day):
     return traffic
 
 
-def readRatios(date, type, day):
+def readRatios(date, type, day, dataTimestamp):
     """
     Reads the path ratios from the dataset and returns a dictionary with the ratios grouped by timestamp and pathName.
 
@@ -226,20 +226,25 @@ def readRatios(date, type, day):
         logger.info("START: reading ratios...")
         ratios = {}
         for i in range(24):
-            timestamp = ''
+            timestamp = ""
             iStr = "%02d" % i
-            logger.info(f"Reading ratios for hour {iStr} ...")
 
             dataRatios = pd.read_csv(
                 f"{RATIOS_OUTPUT_DIR}/{date}_{type}_{day}{iStr}_ratios.csv",
-                names=["timestamp", "flowName", "pathNum", "ratio"],
+                names=["timestamp", "flowName", "path", "ratio"],
                 engine="pyarrow",
             )
             timestamp = dataRatios.iloc[1]["timestamp"]
-            dataRatios.drop(["timestamp"], axis=1, inplace=True)
-            dataRatios.set_index(["flowName", "pathNum"], inplace=True)
 
-            ratios[timestamp] = dataRatios.to_dict()["ratio"]
+            # Target timestamp should have the same day as the data timestamp
+            targetTimestamp = str(timestamp).replace(
+                str(day).capitalize(), dataTimestamp[:3]
+            )
+
+            dataRatios.drop(["timestamp"], axis=1, inplace=True)
+            dataRatios.set_index(["flowName", "path"], inplace=True)
+
+            ratios[targetTimestamp] = dataRatios.to_dict()["ratio"]
             logger.info(
                 f"Finished reading ratios for hour {iStr}, timestamp: {timestamp}, number of ratios: {str(len(dataRatios.index))}"
             )

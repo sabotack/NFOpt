@@ -56,16 +56,17 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
         for sd in flows:
             flowsWithPathNames[sd] = []
             for pathNum in range(len(flows[sd])):
-                #make array of path names into a single string seperated with ;s
+                # make array of path names into a single string seperated with ;s
                 pathName = ";".join(flows[sd][pathNum])
                 flowsWithPathNames[sd].append(pathName)
 
-                
-                
-
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars(
-            [(sd, flowsWithPathNames[sd][pathNum]) for sd in flows for pathNum in range(len(flows[sd]))],
+            [
+                (sd, flowsWithPathNames[sd][pathNum])
+                for sd in flows
+                for pathNum in range(len(flows[sd]))
+            ],
             vtype=GRB.CONTINUOUS,
             name="PathRatios",
         )
@@ -148,7 +149,12 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                 logger.debug(f"Optimal path ratios for {sd}:")
                 for pathNum in range(len(flowsWithPathNames[sd])):
                     ratioData.append(
-                        [timestamp, sd, flowsWithPathNames[sd][pathNum], path_ratios[sd, flowsWithPathNames[sd][pathNum]].x]
+                        [
+                            timestamp,
+                            sd,
+                            flowsWithPathNames[sd][pathNum],
+                            path_ratios[sd, flowsWithPathNames[sd][pathNum]].x,
+                        ]
                     )
                     logger.debug(
                         f"   Path {pathNum}: {path_ratios[sd, flowsWithPathNames[sd][pathNum]].x * 100} %"

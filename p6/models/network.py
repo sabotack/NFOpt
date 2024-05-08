@@ -3,12 +3,16 @@ class Router:
         self.name = name
         self.ingress = {}
         self.egress = {}
+        self.paths = []
 
     def addConnection(self, link, isEgress):
         if isEgress:
             self.egress[link.name] = link
         else:
             self.ingress[link.name] = link
+
+    def addPath(self, path):
+        self.paths.append(path)
 
 
 class Link:

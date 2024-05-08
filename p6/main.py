@@ -1,5 +1,4 @@
 import argparse
-import sys
 import pandas as pd
 import statistics as stats
 import multiprocessing as mp
@@ -14,7 +13,7 @@ from p6.linear_optimization import optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
-DATA_DAY = 2
+DATA_DAY = 3
 
 
 def calcLinkUtil(links):
@@ -95,23 +94,39 @@ def main():
         help="save linear optimization models",
     )
     parser.add_argument(
-        "-ur", "--use-ratios",
+        "-ur",
+        "--use-ratios",
         nargs=3,
         metavar=("DATE", "TYPE", "DAY"),
-        help="use existing path ratios for calculations"
+        help="use existing path ratios for calculations",
     )
     args = parser.parse_args()
 
     if args.use_ratios:
         date, ratioType, day = args.use_ratios
-        if not date.isdigit() or len(date) != 8 or int(date[4:6]) > 12 or int(date[6:]) > 31:
+        if (
+            not date.isdigit()
+            or len(date) != 8
+            or int(date[4:6]) > 12
+            or int(date[6:]) > 31
+        ):
             parser.error("Invalid date. Please use a date in the format YYYYMMDD.")
-        if ratioType not in [CalcType.AVERAGE.value, CalcType.MAX.value, CalcType.SQUARED.value]:
-            parser.error("Invalid ratio type. Please use 'average', 'max' or 'squared'.")
+        if ratioType not in [
+            CalcType.AVERAGE.value,
+            CalcType.MAX.value,
+            CalcType.SQUARED.value,
+        ]:
+            parser.error(
+                "Invalid ratio type. Please use 'average', 'max' or 'squared'."
+            )
         if day not in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
-            parser.error("Invalid day. Please use 'mon', 'tue', 'wed', 'thu', 'fri', 'sat' or 'sun'.")
+            parser.error(
+                "Invalid day. Please use 'mon', 'tue', 'wed', 'thu', 'fri', 'sat' or 'sun'."
+            )
         if args.model_type != CalcType.BASELINE.value:
-            parser.error("Cannot use existing path ratios with the specified model type.")
+            parser.error(
+                "Cannot use existing path ratios with the specified model type."
+            )
 
     # Set start method to spawn to avoid issues with multiprocessing on Windows
     set_start_method("spawn")
@@ -126,22 +141,26 @@ def main():
     inputArr = []
     if args.use_ratios:
         date, ratioType, day = args.use_ratios
-        ratios = dataUtils.readRatios(date, ratioType, day)
+        ratios = dataUtils.readRatios(date, ratioType, day, next(iter(flows)))
 
-        # for timestamp in flows:
-        #     print(ratios[timestamp])
-        #     break
-        #     for i, flowKey in enumerate(flows[timestamp]):
-        #         if i >= 5:
-        #             break
-        #         print(ratios[timestamp][flowKey])
-        # sys.exit(0)
-
-        #inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows]
-        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows.keys()][:1]
+        inputArr = [
+            (
+                timestamp,
+                flows[timestamp],
+                traffic[timestamp],
+                args,
+                links.copy(),
+                ratios[timestamp],
+            )
+            for timestamp in flows
+        ]
+        # inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows.keys()][:1]
     else:
-        #inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows]
-        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows.keys()][:1]
+        inputArr = [
+            (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
+            for timestamp in flows
+        ]
+        # inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows.keys()][:1]
 
     with mp.Pool() as pool:
         results = pool.starmap(
