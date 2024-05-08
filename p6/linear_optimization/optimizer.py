@@ -52,9 +52,21 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
         # Create optimization model based on the input model
         m = gp.Model("network_optimization", env=env)
 
+        i = 0
+        flowsWithPathNames = {}
+        for sd in flows:
+            flowsWithPathNames[sd] = []
+            for pathNum in range(len(flows[sd])):
+                #make array of path names into a single string seperated with ;s
+                pathName = ";".join(flows[sd][pathNum])
+                flowsWithPathNames[sd].append(pathName)
+
+                
+                
+
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars(
-            [(sd, pathNum) for sd in flows for pathNum in range(len(flows[sd]))],
+            [(sd, flowsWithPathNames[sd][pathNum]) for sd in flows for pathNum in range(len(flows[sd]))],
             vtype=GRB.CONTINUOUS,
             name="PathRatios",
         )
@@ -85,7 +97,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
             linkTuple = tuple((link[:5], link[5:]))
             link_flow = gp.quicksum(
                 (
-                    path_ratios[sd, pathNum] * traffic[sd]
+                    path_ratios[sd, flowsWithPathNames[sd][pathNum]] * traffic[sd]
                     if linkTuple in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
                     else 0
                 )
@@ -126,6 +138,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
             m.write(f"{OPT_MODELS_OUTPUT_DIR}/{ts}_{model}_{time}.lp")
 
         logger.info("Started optimization...")
+        m.write("modelnewtestwwww.lp")
         m.optimize()
         logger.info("Finished optimization")
 
@@ -135,17 +148,17 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
             # debug and save optimal path ratios
             for sd in flows:
                 logger.debug(f"Optimal path ratios for {sd}:")
-                for pathNum in range(len(flows[sd])):
+                for pathNum in range(len(flowsWithPathNames[sd])):
                     ratioData.append(
-                        [timestamp, sd, pathNum, path_ratios[sd, pathNum].x]
+                        [timestamp, sd, flowsWithPathNames[sd][pathNum], path_ratios[sd, flowsWithPathNames[sd][pathNum]].x]
                     )
                     logger.debug(
-                        f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %"
+                        f"   Path {pathNum}: {path_ratios[sd, flowsWithPathNames[sd][pathNum]].x * 100} %"
                     )
 
             dataUtils.writeDataToFile(
                 pd.DataFrame(
-                    ratioData, columns=["timestamp", "flowName", "pathNum", "ratio"]
+                    ratioData, columns=["timestamp", "flowName", "path", "ratio"]
                 ),
                 model,
                 True,
@@ -159,13 +172,13 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                 linkTuple = tuple((link[:5], link[5:]))
                 link_flow = sum(
                     (
-                        path_ratios[sd, pathNum].x * traffic[sd]
+                        path_ratios[sd, flowsWithPathNames[sd][pathNum]].x * traffic[sd]
                         if linkTuple
                         in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
                         else 0
                     )
                     for sd in links[link]["listFlows"]
-                    for pathNum in range(len(flows[sd]))
+                    for pathNum in range(len(flowsWithPathNames[sd]))
                 )
                 totalLinkUtil += link_flow / links[link]["capacity"] * 100
 

@@ -136,9 +136,12 @@ def main():
         #             break
         #         print(ratios[timestamp][flowKey])
         # sys.exit(0)
-        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows] 
+
+        #inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows]
+        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows.keys()][:1]
     else:
-        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows]
+        #inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows]
+        inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows.keys()][:1]
 
     with mp.Pool() as pool:
         results = pool.starmap(
