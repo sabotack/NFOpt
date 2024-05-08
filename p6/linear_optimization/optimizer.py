@@ -52,7 +52,6 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
         # Create optimization model based on the input model
         m = gp.Model("network_optimization", env=env)
 
-        i = 0
         flowsWithPathNames = {}
         for sd in flows:
             flowsWithPathNames[sd] = []
