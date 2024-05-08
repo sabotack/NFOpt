@@ -60,6 +60,23 @@ def process_flows_hour(timestamp, flows, traffic, args, linksCopy):
 
     # Run linear optimization or baseline calculations
     if args.model_type == CalcType.BASELINE.value:
+        #write links to file
+        dataUtils.writeDataToFile(
+            pd.DataFrame(
+                [
+                    [
+                        timestamp,
+                        link,
+                        links[link]["capacity"],
+                        links[link]["totalTraffic"] / links[link]["capacity"] * 100,
+                    ]
+                    for link in links
+                ],
+                columns=["timestamp", "linkName", "capacity", "utilization (%)"],
+            ),
+            args.model_type,
+            "linkData",
+        )
         linkUtil = calcLinkUtil(links)
         return [
             timestamp,
