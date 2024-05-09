@@ -217,7 +217,7 @@ def readTraffic(day):
     return traffic
 
 
-def readRatios(date, type, dayWeek, dayNum, hour):
+def readRatios(date, type, dayNum, hour):
     """
     Reads the path ratios from the dataset and returns a dictionary with the ratios grouped by timestamp and flowName.
 
@@ -241,7 +241,7 @@ def readRatios(date, type, dayWeek, dayNum, hour):
         ratios = {}
 
         dataRatios = pd.read_csv(
-            f"{DATA_OUTPUT_DIR}/day{dayNum}/{RATIOS_DIR_NAME}/{type}/{date}_{dayWeek}{hour}_ratios.csv",
+            f"{DATA_OUTPUT_DIR}/day{dayNum}/{RATIOS_DIR_NAME}/{type}/{date}_{hour}_ratios.csv",
             names=["timestamp", "flowName", "path", "ratio"],
             engine="pyarrow",
         )
@@ -252,7 +252,7 @@ def readRatios(date, type, dayWeek, dayNum, hour):
         ratios = dataRatios.to_dict()["ratio"]
 
         logger.info(
-            f"Finished reading day{dayNum} {type} ratios ({date}_{dayWeek}{hour}), number of groups: {str(len(ratios))}"
+            f"Finished reading day{dayNum} {type} ratios ({date}_{hour}), number of groups: {str(len(ratios))}"
         )
     except Exception as e:
         logger.error(f"Error reading ratios: {e}")
@@ -283,8 +283,8 @@ def writeDataToFile(data, outputFile, parserArgs):
         match outputFile:
             case "overviewData":
                 if parserArgs.use_ratios:
-                    date, ratioType, dayWeek = parserArgs.use_ratios
-                    filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_ur_day{parserArgs.day}_{date}_{ratioType}_{dayWeek}.csv"
+                    day, date, ratioType = parserArgs.use_ratios
+                    filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_using_ratios_day{day}_{date}_{ratioType}.csv"
                 else:
                     filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}.csv"
             case "ratioData":
@@ -293,7 +293,7 @@ def writeDataToFile(data, outputFile, parserArgs):
                 if not os.path.exists(ratiosDir):
                     os.makedirs(ratiosDir)
 
-                time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
+                time = data["timestamp"][0][4:-6]
                 filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
             case "linkData":
                 linksDir = f"{dayOutputDir}/{LINKS_DIR_NAME}/{parserArgs.model_type}"

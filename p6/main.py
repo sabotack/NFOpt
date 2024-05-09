@@ -35,8 +35,8 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
     # Read ratios if specified
     if args.use_ratios:
         hour = timestamp[4:6]
-        date, ratioType, dayWeek = args.use_ratios
-        ratios = dataUtils.readRatios(date, ratioType, dayWeek, args.day, hour)
+        day, date, ratioType = args.use_ratios
+        ratios = dataUtils.readRatios(date, ratioType, day, hour)
 
     # Initialize totalTraffic and listFlows for all links
     for linkKey in links:
@@ -116,13 +116,15 @@ def main():
         "-ur",
         "--use-ratios",
         nargs=3,
-        metavar=("DATE", "TYPE", "DAY"),
+        metavar=("DAY", "DATE", "TYPE"),
         help="use existing path ratios for calculations",
     )
     args = parser.parse_args()
 
     if args.use_ratios:
-        date, ratioType, day = args.use_ratios
+        day, date, ratioType = args.use_ratios
+        if not day.isdigit():
+            parser.error("Invalid day number.")
         if (
             not date.isdigit()
             or len(date) != 8
@@ -137,10 +139,6 @@ def main():
         ]:
             parser.error(
                 "Invalid ratio type. Please use 'average', 'max' or 'squared'."
-            )
-        if day not in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
-            parser.error(
-                "Invalid day. Please use 'mon', 'tue', 'wed', 'thu', 'fri', 'sat' or 'sun'."
             )
         if args.model_type != CalcType.BASELINE.value:
             parser.error(
