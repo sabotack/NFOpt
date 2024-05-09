@@ -25,7 +25,9 @@ options = {
 }
 
 
-def runLinearOptimizationModel(parserArgs, links, flows, traffic, timestamp, savelp=False):
+def runLinearOptimizationModel(
+    parserArgs, links, flows, traffic, timestamp, savelp=False
+):
     """
     Runs the linear optimization model to calculate the link utilization and the average link utilization.
 
@@ -123,7 +125,9 @@ def runLinearOptimizationModel(parserArgs, links, flows, traffic, timestamp, sav
             m.addConstr(path_ratios.sum(sd, "*") == 1, name=f"traffic_split_{sd}")
 
         if savelp:
-            dayOutputDir = f"{DATA_OUTPUT_DIR}/day{parserArgs.day}/{OPT_MODELS_OUTPUT_DIR}/{model}"
+            dayOutputDir = (
+                f"{DATA_OUTPUT_DIR}/day{parserArgs.day}/{OPT_MODELS_OUTPUT_DIR}/{model}"
+            )
             if not os.path.exists(dayOutputDir):
                 os.makedirs(dayOutputDir)
 
