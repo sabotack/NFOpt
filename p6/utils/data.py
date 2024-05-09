@@ -242,13 +242,11 @@ def readRatios(date, type, dayNum, hour):
 
         dataRatios = pd.read_csv(
             f"{DATA_OUTPUT_DIR}/day{dayNum}/{RATIOS_DIR_NAME}/{type}/{date}_{hour}_ratios.csv",
-            names=["timestamp", "flowName", "path", "ratio"],
+            names=["flowName", "path", "ratio"],
             engine="pyarrow",
         )
 
-        dataRatios.drop(["timestamp"], axis=1, inplace=True)
         dataRatios.set_index(["flowName", "path"], inplace=True)
-
         ratios = dataRatios.to_dict()["ratio"]
 
         logger.info(
@@ -294,6 +292,7 @@ def writeDataToFile(data, outputFile, parserArgs):
                     os.makedirs(ratiosDir)
 
                 time = data["timestamp"][0][4:-6]
+                data.drop(["timestamp"], axis=1, inplace=True)
                 filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
             case "linkData":
                 linksDir = f"{dayOutputDir}/{LINKS_DIR_NAME}/{parserArgs.model_type}"
