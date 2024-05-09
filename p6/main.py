@@ -1,4 +1,5 @@
 import argparse
+import os
 import pandas as pd
 import statistics as stats
 import multiprocessing as mp
@@ -13,7 +14,8 @@ from p6.linear_optimization import optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
-DATA_DAY = 3
+AVG_CAPACITY = int(os.getenv("AVERAGE_CAPACITY"))
+DATA_DAY = 2
 
 
 def calcLinkUtil(links):
@@ -27,52 +29,63 @@ def calcLinkUtil(links):
     return util
 
 
-def process_flows_hour(timestamp, flows, traffic, args, linksCopy, ratios=None):
-    links = linksCopy
+def process_flows_hour(timestamp, flows, traffic, args, links):
+    logger.info(f"Processing {timestamp} with {len(flows)} flows...")
+    ratios = None
+
+    # Read ratios if specified
+    if args.use_ratios:
+        hour = timestamp[4:6]
+        date, ratioType, day = args.use_ratios
+        ratios = dataUtils.readRatios(date, ratioType, day, hour)
 
     # Initialize totalTraffic and listFlows for all links
     for linkKey in links:
         links[linkKey]["totalTraffic"] = 0
         links[linkKey]["listFlows"] = []
 
-    logger.info(f"Processing {timestamp} with {len(flows)} flows...")
     for flow in flows:
-        routers = nwUtils.getRoutersHashFromFlow(flows[flow])
-        flowLinks = nwUtils.getFlowLinks(routers, links, ratios)
+        # Get all links in the flow
+        linksFlow = nwUtils.getLinksFromFlow(flows[flow])
 
-        # Update links with traffic, and if link is new, add it to links
-        for linkKey in flowLinks:
-            if linkKey in links:
-                links[linkKey]["totalTraffic"] += (
-                    traffic[flow] * flowLinks[linkKey].trafficRatio
-                )
-            else:
-                links[linkKey] = {
-                    "linkStart": flowLinks[linkKey].linkStart,
-                    "linkEnd": flowLinks[linkKey].linkEnd,
-                    "capacity": flowLinks[linkKey].capacity,
-                    "totalTraffic": traffic[flow] * flowLinks[linkKey].trafficRatio,
+        # Update totalTraffic and listFlows for each link
+        for link in linksFlow:
+            if link not in links:
+                sd = link.split(";")
+
+                links[link] = {
+                    "linkStart": sd[0],
+                    "linkEnd": sd[1],
+                    "capacity": AVG_CAPACITY,
+                    "totalTraffic": 0,
                     "listFlows": [],
                 }
 
-            # Add this flow to the list of flows for this link
-            links[linkKey]["listFlows"].append(flow)
+            totalTraffic = 0
+            for path in flows[flow]:
+                if link in path:
+                    if ratios is not None:
+                        totalTraffic += traffic[flow] * float(ratios[flow, path])
+                    else:
+                        totalTraffic += traffic[flow] * (1 / len(flows[flow]))
+
+            links[link]["totalTraffic"] += totalTraffic
+            links[link]["listFlows"].append(flow)
 
     # Run linear optimization or baseline calculations
     if args.model_type == CalcType.BASELINE.value:
         linkUtil = calcLinkUtil(links)
-        return [
-            timestamp,
-            min(linkUtil.values()),
-            max(linkUtil.values()),
-            stats.mean(linkUtil.values()),
-        ]
     else:
-        avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(
+        linkUtil = linOpt.runLinearOptimizationModel(
             args.model_type, links, flows, traffic, timestamp, args.save_lp_models
         )
-        logger.info("LINEAR OPTIMIZATION RETURNED!")
-        return [timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil]
+
+    return [
+        timestamp,
+        min(linkUtil.values()),
+        max(linkUtil.values()),
+        stats.mean(linkUtil.values()),
+    ]
 
 
 def main():
@@ -138,44 +151,24 @@ def main():
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
-    inputArr = []
-    if args.use_ratios:
-        date, ratioType, day = args.use_ratios
-        ratios = dataUtils.readRatios(date, ratioType, day, next(iter(flows)))
-
-        inputArr = [
-            (
-                timestamp,
-                flows[timestamp],
-                traffic[timestamp],
-                args,
-                links.copy(),
-                ratios[timestamp],
-            )
-            for timestamp in flows
-        ]
-        # inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy(), ratios[timestamp]) for timestamp in flows.keys()][:1]
-    else:
-        inputArr = [
-            (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
-            for timestamp in flows
-        ]
-        # inputArr = [(timestamp, flows[timestamp], traffic[timestamp], args, links.copy()) for timestamp in flows.keys()][:1]
-
     with mp.Pool() as pool:
         results = pool.starmap(
             process_flows_hour,
-            inputArr,
+            [
+                (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
+                for timestamp in flows
+            ],
         )
 
     logger.info("Finished processing all timestamps!")
 
     results.sort()
     dataUtils.writeDataToFile(
-        pd.DataFrame(
+        data=pd.DataFrame(
             results, columns=["timestamp", "min_util", "max_util", "avg_util"]
         ),
-        args.model_type,
+        type=args.model_type,
+        usedRatios=args.use_ratios,
     )
 
     endTime = pd.Timestamp.now()
