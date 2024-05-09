@@ -26,7 +26,7 @@ if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
 else:
     CPU_THREADS = mp.cpu_count()
 
-    
+
 def _processGroup(chunk, group_func):
     return chunk.groupby(["timestamp", "flowName"])["path"].apply(group_func)
 
@@ -35,7 +35,7 @@ def _groupFunc(x):
     # Return array of paths, removing the brackets from the string
     return [path[1:-1] for path in x]
 
-  
+
 def _mergeResults(results):
     return {k: v for result in results for k, v in result.items()}
 
