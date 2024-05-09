@@ -15,7 +15,6 @@ from p6.linear_optimization import optimizer as linOpt
 logger = log.setupCustomLogger(__name__)
 
 AVG_CAPACITY = int(os.getenv("AVERAGE_CAPACITY"))
-DATA_DAY = 2
 
 
 def calcLinkUtil(links):
@@ -36,8 +35,8 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
     # Read ratios if specified
     if args.use_ratios:
         hour = timestamp[4:6]
-        date, ratioType, day = args.use_ratios
-        ratios = dataUtils.readRatios(date, ratioType, day, hour)
+        date, ratioType, dayWeek = args.use_ratios
+        ratios = dataUtils.readRatios(date, ratioType, dayWeek, args.day, hour)
 
     # Initialize totalTraffic and listFlows for all links
     for linkKey in links:
@@ -77,7 +76,7 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
         linkUtil = calcLinkUtil(links)
     else:
         linkUtil = linOpt.runLinearOptimizationModel(
-            args.model_type, links, flows, traffic, timestamp, args.save_lp_models
+            args, links, flows, traffic, timestamp, args.save_lp_models
         )
 
     return [
@@ -99,6 +98,13 @@ def main():
             CalcType.SQUARED.value,
         ],
         help="type of calculation to run",
+    )
+    parser.add_argument(
+        "day",
+        type=int,
+        nargs="?",
+        default=2,
+        help="day number of data to process",
     )
     parser.add_argument(
         "-slpm",
@@ -147,9 +153,9 @@ def main():
     startTime = pd.Timestamp.now()
     logger.info("Started, model_type: " + str(args.model_type))
 
-    flows = dataUtils.readFlows(DATA_DAY)
+    flows = dataUtils.readFlows(args.day)
     links = dataUtils.readLinks()
-    traffic = dataUtils.readTraffic(DATA_DAY)
+    traffic = dataUtils.readTraffic(args.day)
 
     with mp.Pool(processes=dataUtils.CPU_THREADS) as pool:
         results = pool.starmap(
@@ -168,9 +174,8 @@ def main():
         data=pd.DataFrame(
             results, columns=["timestamp", "min_util", "max_util", "avg_util"]
         ),
-        type=args.model_type,
+        parserArgs=args,
         outputFile="overviewData",
-        usedRatios=args.use_ratios,
     )
 
     endTime = pd.Timestamp.now()

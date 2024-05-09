@@ -14,7 +14,8 @@ logger = log.setupCustomLogger(__name__)
 
 load_dotenv("variables.env")
 
-OPT_MODELS_OUTPUT_DIR = os.getenv("OPT_MODELS_OUTPUT_DIR")
+DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
+OPT_MODELS_OUTPUT_DIR = "optimization_models"
 
 # Environment gurobi license variables
 options = {
@@ -24,7 +25,7 @@ options = {
 }
 
 
-def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=False):
+def runLinearOptimizationModel(parserArgs, links, flows, traffic, timestamp, savelp=False):
     """
     Runs the linear optimization model to calculate the link utilization and the average link utilization.
 
@@ -47,6 +48,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
     The total link utilization, the average link utilization, and the link utilization for each link.
     """
     logger.info("Started running linear optimization model...")
+    model = parserArgs.model_type
 
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         # Create optimization model based on the input model
@@ -121,12 +123,13 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
             m.addConstr(path_ratios.sum(sd, "*") == 1, name=f"traffic_split_{sd}")
 
         if savelp:
-            if not os.path.exists(OPT_MODELS_OUTPUT_DIR):
-                os.makedirs(OPT_MODELS_OUTPUT_DIR)
+            dayOutputDir = f"{DATA_OUTPUT_DIR}/day{parserArgs.day}/{OPT_MODELS_OUTPUT_DIR}/{model}"
+            if not os.path.exists(dayOutputDir):
+                os.makedirs(dayOutputDir)
 
             ts = datetime.now().strftime("%Y%m%d")
             time = (timestamp[:3] + timestamp[4:-6]).lower()
-            m.write(f"{OPT_MODELS_OUTPUT_DIR}/{ts}_{model}_{time}.lp")
+            m.write(f"{dayOutputDir}/{ts}_{time}.lp")
 
         logger.info("Started optimization...")
         m.optimize()
@@ -155,8 +158,8 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                 pd.DataFrame(
                     ratioData, columns=["timestamp", "flowName", "path", "ratio"]
                 ),
-                model,
                 "ratioData",
+                parserArgs,
             )
 
             # Calculate link utilization

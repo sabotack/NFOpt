@@ -17,8 +17,8 @@ DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
 DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
-RATIOS_OUTPUT_DIR = os.getenv("RATIOS_OUTPUT_DIR")
-LINKS_OUTPUT_DIR = os.getenv("LINKS_OUTPUT_DIR")
+RATIOS_DIR_NAME = "ratios"
+LINKS_DIR_NAME = "links"
 
 CPU_THREADS = os.getenv("CPU_THREADS")
 if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
@@ -217,7 +217,7 @@ def readTraffic(day):
     return traffic
 
 
-def readRatios(date, type, day, hour):
+def readRatios(date, type, dayWeek, dayNum, hour):
     """
     Reads the path ratios from the dataset and returns a dictionary with the ratios grouped by timestamp and flowName.
 
@@ -241,7 +241,7 @@ def readRatios(date, type, day, hour):
         ratios = {}
 
         dataRatios = pd.read_csv(
-            f"{RATIOS_OUTPUT_DIR}/{date}_{type}_{day}{hour}_ratios.csv",
+            f"{DATA_OUTPUT_DIR}/day{dayNum}/{RATIOS_DIR_NAME}/{type}/{date}_{dayWeek}{hour}_ratios.csv",
             names=["timestamp", "flowName", "path", "ratio"],
             engine="pyarrow",
         )
@@ -252,7 +252,7 @@ def readRatios(date, type, day, hour):
         ratios = dataRatios.to_dict()["ratio"]
 
         logger.info(
-            f"Finished reading ratios ({date}_{type}_{day}{hour}), number of groups: {str(len(ratios))}"
+            f"Finished reading day{dayNum} {type} ratios ({date}_{dayWeek}{hour}), number of groups: {str(len(ratios))}"
         )
     except Exception as e:
         logger.error(f"Error reading ratios: {e}")
@@ -261,7 +261,7 @@ def readRatios(date, type, day, hour):
     return ratios
 
 
-def writeDataToFile(data, type, outputFile, usedRatios=None):
+def writeDataToFile(data, outputFile, parserArgs):
     """
     Writes the daily utilization data to a CSV file.
 
@@ -272,40 +272,36 @@ def writeDataToFile(data, type, outputFile, usedRatios=None):
     """
 
     try:
-        if not os.path.exists(DATA_OUTPUT_DIR):
-            os.makedirs(DATA_OUTPUT_DIR)
+        dayOutputDir = f"{DATA_OUTPUT_DIR}/day{parserArgs.day}"
+
+        if not os.path.exists(dayOutputDir):
+            os.makedirs(dayOutputDir)
 
         filePath = ""
         timestamp = datetime.now().strftime("%Y%m%d")
 
         match outputFile:
             case "overviewData":
-                if usedRatios:
-                    date, ratioType, day = usedRatios
-                    filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}_wratios_{date}_{ratioType}_{day}.csv"
+                if parserArgs.use_ratios:
+                    date, ratioType, dayWeek = parserArgs.use_ratios
+                    filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_ur_day{parserArgs.day}_{date}_{ratioType}_{dayWeek}.csv"
                 else:
-                    filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+                    filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}.csv"
             case "ratioData":
+                ratiosDir = f"{dayOutputDir}/{RATIOS_DIR_NAME}/{parserArgs.model_type}"
                 # create directory if it does not exist
-                if not os.path.exists(RATIOS_OUTPUT_DIR):
-                    os.makedirs(RATIOS_OUTPUT_DIR)
-
-                filePath = RATIOS_OUTPUT_DIR + "/" + type
-                if not os.path.exists(filePath):
-                    os.makedirs(filePath)
+                if not os.path.exists(ratiosDir):
+                    os.makedirs(ratiosDir)
 
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
-                filePath = f"{RATIOS_OUTPUT_DIR}/{type}/{timestamp}_{time}_ratios.csv"
+                filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
             case "linkData":
-                if not os.path.exists(LINKS_OUTPUT_DIR):
-                    os.makedirs(LINKS_OUTPUT_DIR)
-
-                filePath = LINKS_OUTPUT_DIR + "/" + type
-                if not os.path.exists(filePath):
-                    os.makedirs(filePath)
+                linksDir = f"{dayOutputDir}/{LINKS_DIR_NAME}/{parserArgs.model_type}"
+                if not os.path.exists(linksDir):
+                    os.makedirs(linksDir)
 
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
-                filePath = f"{LINKS_OUTPUT_DIR}/{type}/{timestamp}_{time}_links.csv"
+                filePath = f"{linksDir}/{timestamp}_{time}_links.csv"
             case _:
                 raise ValueError(f"Invalid output file: {outputFile}")
 
