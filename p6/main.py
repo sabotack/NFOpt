@@ -151,11 +151,12 @@ def main():
     links = dataUtils.readLinks()
     traffic = dataUtils.readTraffic(DATA_DAY)
 
-    with mp.Pool() as pool:
+    with mp.Pool(processes=dataUtils.CPU_THREADS) as pool:
         results = pool.starmap(
             process_flows_hour,
             [
                 (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
+                # for timestamp in list(flows.keys())[:1]
                 for timestamp in flows
             ],
         )
@@ -168,6 +169,7 @@ def main():
             results, columns=["timestamp", "min_util", "max_util", "avg_util"]
         ),
         type=args.model_type,
+        outputFile="overviewData",
         usedRatios=args.use_ratios,
     )
 

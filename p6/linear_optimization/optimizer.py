@@ -31,7 +31,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
     ### Parameters:
     ----------
     #### model: string
-    The optimization model to run, can be 'averageUtilization', 'maxUtilization', or 'squaredUtilization'.
+    The optimization model to run, can be 'averageUtilization', 'maxUtilization', or 'squared'.
 
     #### links: dict
     The links in the network, indexed by linkName.
@@ -156,7 +156,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                     ratioData, columns=["timestamp", "flowName", "path", "ratio"]
                 ),
                 model,
-                True,
+                "ratioData",
             )
 
             # Calculate link utilization

@@ -18,18 +18,25 @@ DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
 RATIOS_OUTPUT_DIR = os.getenv("RATIOS_OUTPUT_DIR")
+LINKS_OUTPUT_DIR = os.getenv("LINKS_OUTPUT_DIR")
 
+CPU_THREADS = os.getenv("CPU_THREADS")
+if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
+    CPU_THREADS = int(CPU_THREADS)
+else:
+    CPU_THREADS = mp.cpu_count()
 
-def _process_group(chunk, group_func):
+    
+def _processGroup(chunk, group_func):
     return chunk.groupby(["timestamp", "flowName"])["path"].apply(group_func)
 
 
-def _group_func(x):
+def _groupFunc(x):
     # Return array of paths, removing the brackets from the string
     return [path[1:-1] for path in x]
 
-
-def _merge_results(results):
+  
+def _mergeResults(results):
     return {k: v for result in results for k, v in result.items()}
 
 
@@ -66,28 +73,27 @@ def readFlows(day):
         logger.debug("Grouping paths...")
 
         # Splitting data into chunks for multiprocessing
-        cpu_count = mp.cpu_count()
-        chunk_size = len(dataFlows) // cpu_count
+        chunkSize = len(dataFlows) // CPU_THREADS
         logger.info(
-            f"Grouping in parallel | CPUs: {cpu_count} | chunk_size: {chunk_size} | len(dataFlows): {len(dataFlows)}"
+            f"Grouping using CPU threads: {CPU_THREADS} | chunkSize: {chunkSize} | len(dataFlows): {len(dataFlows)}"
         )
         chunks = [
             (
                 dataFlows[i:]
-                if rangeIndex == cpu_count - 1
-                else dataFlows[i : i + chunk_size]
+                if rangeIndex == CPU_THREADS - 1
+                else dataFlows[i : i + chunkSize]
             )
-            for rangeIndex, i in enumerate([i * chunk_size for i in range(cpu_count)])
+            for rangeIndex, i in enumerate([i * chunkSize for i in range(CPU_THREADS)])
         ]
 
-        partial_process_group = partial(_process_group, group_func=_group_func)
+        partialProcessGroup = partial(_processGroup, group_func=_groupFunc)
 
         # Create a pool of processes and apply the process_group function to each chunk
-        with mp.Pool() as pool:
-            results = pool.map(partial_process_group, chunks)
+        with mp.Pool(processes=CPU_THREADS) as pool:
+            results = pool.map(partialProcessGroup, chunks)
 
         # Merge the results from all processes
-        grouped_flows = _merge_results(results)
+        grouped_flows = _mergeResults(results)
 
         # grouped_flows = dataFlows.groupby(['timestamp', 'flowName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
         logger.debug("Finished grouping paths")
@@ -255,7 +261,7 @@ def readRatios(date, type, day, hour):
     return ratios
 
 
-def writeDataToFile(data, type, ratioData=None, usedRatios=None):
+def writeDataToFile(data, type, outputFile, usedRatios=None):
     """
     Writes the daily utilization data to a CSV file.
 
@@ -272,17 +278,36 @@ def writeDataToFile(data, type, ratioData=None, usedRatios=None):
         filePath = ""
         timestamp = datetime.now().strftime("%Y%m%d")
 
-        if ratioData is not None:
-            if not os.path.exists(RATIOS_OUTPUT_DIR):
-                os.makedirs(RATIOS_OUTPUT_DIR)
+        match outputFile:
+            case "overviewData":
+                if usedRatios:
+                    date, ratioType, day = usedRatios
+                    filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}_wratios_{date}_{ratioType}_{day}.csv"
+                else:
+                    filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+            case "ratioData":
+                # create directory if it does not exist
+                if not os.path.exists(RATIOS_OUTPUT_DIR):
+                    os.makedirs(RATIOS_OUTPUT_DIR)
 
-            time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
-            filePath = f"{RATIOS_OUTPUT_DIR}/{timestamp}_{type}_{time}_ratios.csv"
-        elif usedRatios:
-            date, ratioType, day = usedRatios
-            filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}_wratios_{date}_{ratioType}_{day}.csv"
-        else:
-            filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+                filePath = RATIOS_OUTPUT_DIR + "/" + type
+                if not os.path.exists(filePath):
+                    os.makedirs(filePath)
+
+                time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
+                filePath = f"{RATIOS_OUTPUT_DIR}/{type}/{timestamp}_{time}_ratios.csv"
+            case "linkData":
+                if not os.path.exists(LINKS_OUTPUT_DIR):
+                    os.makedirs(LINKS_OUTPUT_DIR)
+
+                filePath = LINKS_OUTPUT_DIR + "/" + type
+                if not os.path.exists(filePath):
+                    os.makedirs(filePath)
+
+                time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
+                filePath = f"{LINKS_OUTPUT_DIR}/{type}/{timestamp}_{time}_links.csv"
+            case _:
+                raise ValueError(f"Invalid output file: {outputFile}")
 
         logger.info(f"Writing data to file...")
         data.to_csv(filePath, mode="w", header=True, index=False)
