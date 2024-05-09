@@ -281,7 +281,7 @@ def writeDataToFile(data, outputFile, parserArgs):
         match outputFile:
             case "overviewData":
                 if parserArgs.use_ratios:
-                    day, date, ratioType = parserArgs.use_ratios
+                    day, ratioType, date = parserArgs.use_ratios
                     filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_using_ratios_day{day}_{date}_{ratioType}.csv"
                 else:
                     filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}.csv"

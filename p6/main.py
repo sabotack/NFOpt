@@ -35,7 +35,7 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
     # Read ratios if specified
     if args.use_ratios:
         hour = timestamp[4:6]
-        day, date, ratioType = args.use_ratios
+        day, ratioType, date = args.use_ratios
         ratios = dataUtils.readRatios(date, ratioType, day, hour)
 
     # Initialize totalTraffic and listFlows for all links
@@ -123,13 +123,13 @@ def main():
         "-ur",
         "--use-ratios",
         nargs=3,
-        metavar=("DAY", "DATE", "TYPE"),
+        metavar=("DAY", "TYPE", "DATE"),
         help="use existing path ratios for calculations",
     )
     args = parser.parse_args()
 
     if args.use_ratios:
-        day, date, ratioType = args.use_ratios
+        day, ratioType, date = args.use_ratios
         if not day.isdigit():
             parser.error("Invalid day number.")
         if (
