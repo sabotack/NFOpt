@@ -61,10 +61,11 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
                 }
 
             identicalPaths = True
-            for path in flows[flow]:
-                if (flow, path) not in ratios:
-                    identicalPaths = False
-                    break
+            if ratios is not None:
+                for path in flows[flow]:
+                    if (flow, path) not in ratios:
+                        identicalPaths = False
+                        break
 
             totalTraffic = 0
             for path in flows[flow]:
