@@ -47,6 +47,13 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
         # Get all links in the flow
         linksFlow = nwUtils.getLinksFromFlow(flows[flow])
 
+        identicalPaths = True
+        if ratios is not None:
+            for path in flows[flow]:
+                if (flow, path) not in ratios:
+                    identicalPaths = False
+                    break
+
         # Update totalTraffic and listFlows for each link
         for link in linksFlow:
             if link not in links:
@@ -59,13 +66,6 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
                     "totalTraffic": 0,
                     "listFlows": [],
                 }
-
-            identicalPaths = True
-            if ratios is not None:
-                for path in flows[flow]:
-                    if (flow, path) not in ratios:
-                        identicalPaths = False
-                        break
 
             totalTraffic = 0
             for path in flows[flow]:
