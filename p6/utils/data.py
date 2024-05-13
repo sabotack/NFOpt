@@ -17,8 +17,8 @@ DATASET_TRAFFIC_PREFIX = os.getenv("DATASET_TRAFFIC_PREFIX")
 DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
-RATIOS_OUTPUT_DIR = os.getenv("RATIOS_OUTPUT_DIR")
-LINKS_OUTPUT_DIR = os.getenv("LINKS_OUTPUT_DIR")
+RATIOS_DIR_NAME = "ratios"
+LINKS_DIR_NAME = "links"
 
 CPU_THREADS = os.getenv("CPU_THREADS")
 if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
@@ -28,11 +28,12 @@ else:
 
 
 def _processGroup(chunk, group_func):
-    return chunk.groupby(["timestamp", "pathName"])["path"].apply(group_func)
+    return chunk.groupby(["timestamp", "flowName"])["path"].apply(group_func)
 
 
 def _groupFunc(x):
-    return [path[1:-1].split(";") for path in x]
+    # Return array of paths, removing the brackets from the string
+    return [path[1:-1] for path in x]
 
 
 def _mergeResults(results):
@@ -41,7 +42,7 @@ def _mergeResults(results):
 
 def readFlows(day):
     """
-    Reads the flow paths from the dataset and returns a dictionary with the flows grouped by timestamp and pathName.
+    Reads the flow paths from the dataset and returns a dictionary with the flows grouped by timestamp and flowName.
     The paths are also split into a list of paths.
 
     ### Parameters:
@@ -51,7 +52,7 @@ def readFlows(day):
 
     ### Returns:
     ----------
-    A dictionary with the flows grouped by timestamp and pathName, with the paths split into a list of paths.
+    A dictionary with the flows grouped by timestamp and flowName, with the paths split into a list of paths.
     """
 
     try:
@@ -63,12 +64,12 @@ def readFlows(day):
             names=["timestamp", "pathStart", "pathEnd", "path"],
             engine="pyarrow",
         )
-        dataFlows["pathName"] = dataFlows["pathStart"] + dataFlows["pathEnd"]
+        dataFlows["flowName"] = dataFlows["pathStart"] + ";" + dataFlows["pathEnd"]
         logger.info(
             "Finished reading paths, number of paths: " + str(len(dataFlows.index))
         )
 
-        # Grouping paths by timestamp and pathName, and splitting the path string into a list of paths
+        # Grouping paths by timestamp and flowName, and splitting the path string into a list of paths
         logger.debug("Grouping paths...")
 
         # Splitting data into chunks for multiprocessing
@@ -94,20 +95,21 @@ def readFlows(day):
         # Merge the results from all processes
         grouped_flows = _mergeResults(results)
 
-        # grouped_flows = dataFlows.groupby(['timestamp', 'pathName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
+        # grouped_flows = dataFlows.groupby(['timestamp', 'flowName'])['path'].apply(lambda x: [path[1:-1].split(';') for path in x]).to_dict()
         logger.debug("Finished grouping paths")
 
         # Constructing the final flows dictionary, only keeping paths with more than one router in path
         logger.debug("Constructing flows dictionary...")
         flows = {}
-        for (timestamp, pathName), paths in grouped_flows.items():
+        for (timestamp, flowName), paths in grouped_flows.items():
+            sd = flowName.split(";")
             for path in paths:
                 # Only keep paths with more than one router (link has to have at least 2 routers)
                 # Also dont add paths that start and end at the same router
-                if len(path) > 1 and pathName[:5] != pathName[5:]:
+                if len(path) > 1 and sd[0] != sd[1]:
                     if timestamp not in flows:
                         flows[timestamp] = {}
-                    flows[timestamp][pathName] = paths
+                    flows[timestamp][flowName] = paths
         logger.debug("Finished constructing flows dictionary")
 
         logger.info("END: reading flows, number of groups: " + str(len(flows)))
@@ -138,7 +140,9 @@ def readLinks():
             skiprows=1,
             engine="pyarrow",
         )
-        dataCapacity["linkName"] = dataCapacity["linkStart"] + dataCapacity["linkEnd"]
+        dataCapacity["linkName"] = (
+            dataCapacity["linkStart"] + ";" + dataCapacity["linkEnd"]
+        )
         dataCapacity.set_index("linkName", inplace=True)
         links = dataCapacity.to_dict("index")
         # remove links that start and end at the same router - update: this is not necessary cant find any duplicates
@@ -177,7 +181,9 @@ def readTraffic(day):
             names=["timestamp", "flowStart", "flowEnd", "traffic"],
             engine="pyarrow",
         )
-        dataTraffic["flow"] = dataTraffic["flowStart"] + dataTraffic["flowEnd"]
+        dataTraffic["flowName"] = (
+            dataTraffic["flowStart"] + ";" + dataTraffic["flowEnd"]
+        )
         dataTraffic = dataTraffic.drop(["flowStart", "flowEnd"], axis=1)
         logger.info(
             "Finished reading traffic, number of flows: " + str(len(dataTraffic.index))
@@ -186,20 +192,21 @@ def readTraffic(day):
         # Grouping traffic by timestamp and flow
         logger.debug("Grouping traffic...")
         grouped_traffic = (
-            dataTraffic.groupby(["timestamp", "flow"])["traffic"].first().to_dict()
+            dataTraffic.groupby(["timestamp", "flowName"])["traffic"].first().to_dict()
         )
         logger.debug("Finished grouping traffic")
 
         # Constructing the final traffic dictionary
         logger.debug("Constructing traffic dictionary...")
         traffic = {}
-        for (timestamp, flow), traffic_value in grouped_traffic.items():
+        for (timestamp, flowName), traffic_value in grouped_traffic.items():
+            sd = flowName.split(";")
             if timestamp not in traffic:
                 traffic[timestamp] = {}
             # dont add traffic that starts and ends at the same router
-            if flow[:5] == flow[5:]:
+            if sd[0] == sd[1]:
                 continue
-            traffic[timestamp][flow] = traffic_value
+            traffic[timestamp][flowName] = traffic_value
         logger.debug("Finished constructing traffic dictionary")
 
         logger.info("END: reading traffic, number of groups: " + str(len(traffic)))
@@ -210,7 +217,49 @@ def readTraffic(day):
     return traffic
 
 
-def writeDataToFile(data, type, outputFile):
+def readRatios(date, type, dayNum, hour):
+    """
+    Reads the path ratios from the dataset and returns a dictionary with the ratios grouped by timestamp and flowName.
+
+    ### Parameters:
+    ----------
+    #### date: str
+    The date of the ratios to read in format YYYYMMDD.
+    #### type: str
+    The type of ratios to read.
+    #### day: str
+    The day of the week of the ratios to read.
+    #### hour: str
+    The hour of the ratios to read.
+
+    ### Returns:
+    ----------
+    A dictionary with the ratios grouped by timestamp and flowName.
+    """
+
+    try:
+        ratios = {}
+
+        dataRatios = pd.read_csv(
+            f"{DATA_OUTPUT_DIR}/day{dayNum}/{RATIOS_DIR_NAME}/{type}/{date}_{hour}_ratios.csv",
+            names=["flowName", "path", "ratio"],
+            engine="pyarrow",
+        )
+
+        dataRatios.set_index(["flowName", "path"], inplace=True)
+        ratios = dataRatios.to_dict()["ratio"]
+
+        logger.info(
+            f"Finished reading day{dayNum} {type} ratios ({date}_{hour}), number of groups: {str(len(ratios))}"
+        )
+    except Exception as e:
+        logger.error(f"Error reading ratios: {e}")
+        sys.exit(1)
+
+    return ratios
+
+
+def writeDataToFile(data, outputFile, parserArgs):
     """
     Writes the daily utilization data to a CSV file.
 
@@ -221,36 +270,37 @@ def writeDataToFile(data, type, outputFile):
     """
 
     try:
-        if not os.path.exists(DATA_OUTPUT_DIR):
-            os.makedirs(DATA_OUTPUT_DIR)
+        dayOutputDir = f"{DATA_OUTPUT_DIR}/day{parserArgs.day}"
+
+        if not os.path.exists(dayOutputDir):
+            os.makedirs(dayOutputDir)
 
         filePath = ""
         timestamp = datetime.now().strftime("%Y%m%d")
 
         match outputFile:
             case "overviewData":
-                filePath = f"{DATA_OUTPUT_DIR}/{timestamp}_{type}.csv"
+                if parserArgs.use_ratios:
+                    day, ratioType, date = parserArgs.use_ratios
+                    filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_using_ratios_day{day}_{date}_{ratioType}.csv"
+                else:
+                    filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}.csv"
             case "ratioData":
+                ratiosDir = f"{dayOutputDir}/{RATIOS_DIR_NAME}/{parserArgs.model_type}"
                 # create directory if it does not exist
-                if not os.path.exists(RATIOS_OUTPUT_DIR):
-                    os.makedirs(RATIOS_OUTPUT_DIR)
+                if not os.path.exists(ratiosDir):
+                    os.makedirs(ratiosDir)
 
-                filePath = RATIOS_OUTPUT_DIR + "/" + type
-                if not os.path.exists(filePath):
-                    os.makedirs(filePath)
-
-                time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
-                filePath = f"{RATIOS_OUTPUT_DIR}/{type}/{timestamp}_{time}_ratios.csv"
+                time = data["timestamp"][0][4:-6]
+                data.drop(["timestamp"], axis=1, inplace=True)
+                filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
             case "linkData":
-                if not os.path.exists(LINKS_OUTPUT_DIR):
-                    os.makedirs(LINKS_OUTPUT_DIR)
-
-                filePath = LINKS_OUTPUT_DIR + "/" + type
-                if not os.path.exists(filePath):
-                    os.makedirs(filePath)
+                linksDir = f"{dayOutputDir}/{LINKS_DIR_NAME}/{parserArgs.model_type}"
+                if not os.path.exists(linksDir):
+                    os.makedirs(linksDir)
 
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
-                filePath = f"{LINKS_OUTPUT_DIR}/{type}/{timestamp}_{time}_links.csv"
+                filePath = f"{linksDir}/{timestamp}_{time}_links.csv"
             case _:
                 raise ValueError(f"Invalid output file: {outputFile}")
 

@@ -14,7 +14,8 @@ logger = log.setupCustomLogger(__name__)
 
 load_dotenv("variables.env")
 
-OPT_MODELS_OUTPUT_DIR = os.getenv("OPT_MODELS_OUTPUT_DIR")
+DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
+OPT_MODELS_OUTPUT_DIR = "optimization_models"
 
 # Environment gurobi license variables
 options = {
@@ -24,7 +25,9 @@ options = {
 }
 
 
-def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=False):
+def runLinearOptimizationModel(
+    parserArgs, links, flows, traffic, timestamp, savelp=False
+):
     """
     Runs the linear optimization model to calculate the link utilization and the average link utilization.
 
@@ -47,6 +50,7 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
     The total link utilization, the average link utilization, and the link utilization for each link.
     """
     logger.info("Started running linear optimization model...")
+    model = parserArgs.model_type
 
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         # Create optimization model based on the input model
@@ -54,7 +58,11 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
 
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars(
-            [(sd, pathNum) for sd in flows for pathNum in range(len(flows[sd]))],
+            [
+                (sd, flows[sd][pathNum])
+                for sd in flows
+                for pathNum in range(len(flows[sd]))
+            ],
             vtype=GRB.CONTINUOUS,
             name="PathRatios",
         )
@@ -82,11 +90,10 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
         # Constraints for each link's utilization
         # Consists of the sum of ratios and traffic for each path related to the link
         for link in links:
-            linkTuple = tuple((link[:5], link[5:]))
             link_flow = gp.quicksum(
                 (
-                    path_ratios[sd, pathNum] * traffic[sd]
-                    if linkTuple in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
+                    path_ratios[sd, flows[sd][pathNum]] * traffic[sd]
+                    if link in flows[sd][pathNum]
                     else 0
                 )
                 for sd in links[link]["listFlows"]
@@ -118,12 +125,15 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
             m.addConstr(path_ratios.sum(sd, "*") == 1, name=f"traffic_split_{sd}")
 
         if savelp:
-            if not os.path.exists(OPT_MODELS_OUTPUT_DIR):
-                os.makedirs(OPT_MODELS_OUTPUT_DIR)
+            dayOutputDir = (
+                f"{DATA_OUTPUT_DIR}/day{parserArgs.day}/{OPT_MODELS_OUTPUT_DIR}/{model}"
+            )
+            if not os.path.exists(dayOutputDir):
+                os.makedirs(dayOutputDir)
 
             ts = datetime.now().strftime("%Y%m%d")
             time = (timestamp[:3] + timestamp[4:-6]).lower()
-            m.write(f"{OPT_MODELS_OUTPUT_DIR}/{ts}_{model}_{time}.lp")
+            m.write(f"{dayOutputDir}/{ts}_{time}.lp")
 
         logger.info("Started optimization...")
         m.optimize()
@@ -137,67 +147,42 @@ def runLinearOptimizationModel(model, links, flows, traffic, timestamp, savelp=F
                 logger.debug(f"Optimal path ratios for {sd}:")
                 for pathNum in range(len(flows[sd])):
                     ratioData.append(
-                        [timestamp, sd, pathNum, path_ratios[sd, pathNum].x]
+                        [
+                            timestamp,
+                            sd,
+                            flows[sd][pathNum],
+                            path_ratios[sd, flows[sd][pathNum]].x,
+                        ]
                     )
                     logger.debug(
-                        f"   Path {pathNum}: {path_ratios[sd, pathNum].x * 100} %"
+                        f"   Path {pathNum}: {path_ratios[sd, flows[sd][pathNum]].x * 100} %"
                     )
 
             dataUtils.writeDataToFile(
                 pd.DataFrame(
-                    ratioData, columns=["timestamp", "flowName", "pathNum", "ratio"]
+                    ratioData, columns=["timestamp", "flowName", "path", "ratio"]
                 ),
-                model,
                 "ratioData",
+                parserArgs,
             )
 
-            # Calculate average, min and max link utilization
-            linkData = []
-            totalLinkUtil = 0
-            minLinkUtil = 0
-            maxLinkUtil = 0
+            # Calculate link utilization
+            utils = {}
+
             for link in links:
-                linkTuple = tuple((link[:5], link[5:]))
                 link_flow = sum(
                     (
-                        path_ratios[sd, pathNum].x * traffic[sd]
-                        if linkTuple
-                        in zip(flows[sd][pathNum][:-1], flows[sd][pathNum][1:])
+                        path_ratios[sd, flows[sd][pathNum]].x * traffic[sd]
+                        if link in flows[sd][pathNum]
                         else 0
                     )
                     for sd in links[link]["listFlows"]
                     for pathNum in range(len(flows[sd]))
                 )
-                linkData.append(
-                    [
-                        timestamp,
-                        link,
-                        links[link]["capacity"],
-                        link_flow / links[link]["capacity"] * 100,
-                    ]
-                )
-                totalLinkUtil += link_flow / links[link]["capacity"] * 100
 
-                # Update min and max link utilization
-                if (link_flow / links[link]["capacity"] * 100) < minLinkUtil:
-                    minLinkUtil = link_flow / links[link]["capacity"] * 100
-                if (link_flow / links[link]["capacity"] * 100) > maxLinkUtil:
-                    maxLinkUtil = link_flow / links[link]["capacity"] * 100
+                utils[link] = link_flow / links[link]["capacity"] * 100
 
-            dataUtils.writeDataToFile(
-                pd.DataFrame(
-                    linkData,
-                    columns=["timestamp", "linkName", "capacity", "utilization (%)"],
-                ),
-                model,
-                "linkData",
-            )
-
-            avgLinkUtil = totalLinkUtil / len(links)
-            logger.info(f"Average link utilization: {avgLinkUtil}% for model {model}")
-
-            return avgLinkUtil, minLinkUtil, maxLinkUtil
-
+            return utils
         elif m.status == GRB.INFEASIBLE:
             logger.error("Model is infeasible")
             m.computeIIS()

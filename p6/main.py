@@ -1,4 +1,5 @@
 import argparse
+import os
 import pandas as pd
 import statistics as stats
 import multiprocessing as mp
@@ -13,7 +14,7 @@ from p6.linear_optimization import optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
-DATA_DAY = 2
+AVG_CAPACITY = int(os.getenv("AVERAGE_CAPACITY"))
 
 
 def calcLinkUtil(links):
@@ -27,52 +28,70 @@ def calcLinkUtil(links):
     return util
 
 
-def process_flows_hour(timestamp, flows, traffic, args, linksCopy):
-    links = linksCopy
+def process_flows_hour(timestamp, flows, traffic, args, links):
+    logger.info(f"Processing {timestamp} with {len(flows)} flows...")
+    ratios = None
+
+    # Read ratios if specified
+    if args.use_ratios:
+        hour = timestamp[4:6]
+        day, ratioType, date = args.use_ratios
+        ratios = dataUtils.readRatios(date, ratioType, day, hour)
 
     # Initialize totalTraffic and listFlows for all links
     for linkKey in links:
         links[linkKey]["totalTraffic"] = 0
         links[linkKey]["listFlows"] = []
 
-    logger.info(f"Processing {timestamp} with {len(flows)} flows...")
     for flow in flows:
-        routers = nwUtils.getRoutersHashFromFlow(flows[flow])
-        flowLinks = nwUtils.getFlowLinks(routers, links)
+        # Get all links in the flow
+        linksFlow = nwUtils.getLinksFromFlow(flows[flow])
 
-        # Update links with traffic, and if link is new, add it to links
-        for linkKey in flowLinks:
-            if linkKey in links:
-                links[linkKey]["totalTraffic"] += (
-                    traffic[flow] * flowLinks[linkKey].trafficRatio
-                )
-            else:
-                links[linkKey] = {
-                    "linkStart": flowLinks[linkKey].linkStart,
-                    "linkEnd": flowLinks[linkKey].linkEnd,
-                    "capacity": flowLinks[linkKey].capacity,
-                    "totalTraffic": traffic[flow] * flowLinks[linkKey].trafficRatio,
+        identicalPaths = True
+        if ratios is not None:
+            for path in flows[flow]:
+                if (flow, path) not in ratios:
+                    identicalPaths = False
+                    break
+
+        # Update totalTraffic and listFlows for each link
+        for link in linksFlow:
+            if link not in links:
+                sd = link.split(";")
+
+                links[link] = {
+                    "linkStart": sd[0],
+                    "linkEnd": sd[1],
+                    "capacity": AVG_CAPACITY,
+                    "totalTraffic": 0,
                     "listFlows": [],
                 }
 
-            # Add this flow to the list of flows for this link
-            links[linkKey]["listFlows"].append(flow)
+            totalTraffic = 0
+            for path in flows[flow]:
+                if link in path:
+                    if ratios is not None and identicalPaths:
+                        totalTraffic += traffic[flow] * float(ratios[flow, path])
+                    else:
+                        totalTraffic += traffic[flow] * (1 / len(flows[flow]))
+
+            links[link]["totalTraffic"] += totalTraffic
+            links[link]["listFlows"].append(flow)
 
     # Run linear optimization or baseline calculations
     if args.model_type == CalcType.BASELINE.value:
         linkUtil = calcLinkUtil(links)
-        return [
-            timestamp,
-            min(linkUtil.values()),
-            max(linkUtil.values()),
-            stats.mean(linkUtil.values()),
-        ]
     else:
-        avgLinkUtil, minLinkUtil, maxLinkUtil = linOpt.runLinearOptimizationModel(
-            args.model_type, links, flows, traffic, timestamp, args.save_lp_models
+        linkUtil = linOpt.runLinearOptimizationModel(
+            args, links, flows, traffic, timestamp, args.save_lp_models
         )
-        logger.info("LINEAR OPTIMIZATION RETURNED!")
-        return [timestamp, minLinkUtil, maxLinkUtil, avgLinkUtil]
+
+    return [
+        timestamp,
+        min(linkUtil.values()),
+        max(linkUtil.values()),
+        stats.mean(linkUtil.values()),
+    ]
 
 
 def main():
@@ -88,12 +107,50 @@ def main():
         help="type of calculation to run",
     )
     parser.add_argument(
+        "day",
+        type=int,
+        nargs="?",
+        default=2,
+        help="day number of data to process",
+    )
+    parser.add_argument(
         "-slpm",
         "--save-lp-models",
         action="store_true",
         help="save linear optimization models",
     )
+    parser.add_argument(
+        "-ur",
+        "--use-ratios",
+        nargs=3,
+        metavar=("DAY", "TYPE", "DATE"),
+        help="use existing path ratios for calculations",
+    )
     args = parser.parse_args()
+
+    if args.use_ratios:
+        day, ratioType, date = args.use_ratios
+        if not day.isdigit():
+            parser.error("Invalid day number.")
+        if (
+            not date.isdigit()
+            or len(date) != 8
+            or int(date[4:6]) > 12
+            or int(date[6:]) > 31
+        ):
+            parser.error("Invalid date. Please use a date in the format YYYYMMDD.")
+        if ratioType not in [
+            CalcType.AVERAGE.value,
+            CalcType.MAX.value,
+            CalcType.SQUARED.value,
+        ]:
+            parser.error(
+                "Invalid ratio type. Please use 'average', 'max' or 'squared'."
+            )
+        if args.model_type != CalcType.BASELINE.value:
+            parser.error(
+                "Cannot use existing path ratios with the specified model type."
+            )
 
     # Set start method to spawn to avoid issues with multiprocessing on Windows
     set_start_method("spawn")
@@ -101,9 +158,9 @@ def main():
     startTime = pd.Timestamp.now()
     logger.info("Started, model_type: " + str(args.model_type))
 
-    flows = dataUtils.readFlows(DATA_DAY)
+    flows = dataUtils.readFlows(args.day)
     links = dataUtils.readLinks()
-    traffic = dataUtils.readTraffic(DATA_DAY)
+    traffic = dataUtils.readTraffic(args.day)
 
     with mp.Pool(processes=dataUtils.CPU_THREADS) as pool:
         results = pool.starmap(
@@ -119,11 +176,11 @@ def main():
 
     results.sort()
     dataUtils.writeDataToFile(
-        pd.DataFrame(
+        data=pd.DataFrame(
             results, columns=["timestamp", "min_util", "max_util", "avg_util"]
         ),
-        args.model_type,
-        "overviewData",
+        parserArgs=args,
+        outputFile="overviewData",
     )
 
     endTime = pd.Timestamp.now()
