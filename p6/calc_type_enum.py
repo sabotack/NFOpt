@@ -6,4 +6,5 @@ class CalcType(Enum):
     AVERAGE = "average"
     MAX = "max"
     SQUARED = "squared"
+    PATHS = "paths"
     RATIOS = "ratios"

@@ -10,7 +10,7 @@ from p6.calc_type_enum import CalcType
 from p6.utils import data as dataUtils
 from p6.utils import network as nwUtils
 from p6.utils import log
-from p6.linear_optimization import optimizer as linOpt
+from p6.linear_optimization import netflow, optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
@@ -81,6 +81,8 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
     # Run linear optimization or baseline calculations
     if args.model_type == CalcType.BASELINE.value:
         linkUtil = calcLinkUtil(links)
+    elif args.model_type == CalcType.PATHS.value:
+        netflow.optMC(links, traffic)
     else:
         linkUtil = linOpt.runLinearOptimizationModel(
             args, links, flows, traffic, timestamp, args.save_lp_models
@@ -103,6 +105,7 @@ def main():
             CalcType.AVERAGE.value,
             CalcType.MAX.value,
             CalcType.SQUARED.value,
+            CalcType.PATHS.value,
         ],
         help="type of calculation to run",
     )
@@ -167,8 +170,8 @@ def main():
             process_flows_hour,
             [
                 (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
-                # for timestamp in list(flows.keys())[:1]
-                for timestamp in flows
+                for timestamp in list(flows.keys())[:1]
+                # for timestamp in flows
             ],
         )
 
