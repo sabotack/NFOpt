@@ -290,7 +290,6 @@ def writeDataToFile(data, outputFile, parserArgs):
                 # create directory if it does not exist
                 if not os.path.exists(ratiosDir):
                     os.makedirs(ratiosDir)
-
                 time = data["timestamp"][0][4:-6]
                 data.drop(["timestamp"], axis=1, inplace=True)
                 filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"

@@ -158,6 +158,8 @@ def runLinearOptimizationModel(
                         f"   Path {pathNum}: {path_ratios[sd, flows[sd][pathNum]].x * 100} %"
                     )
 
+            print(ratioData)
+
             dataUtils.writeDataToFile(
                 pd.DataFrame(
                     ratioData, columns=["timestamp", "flowName", "path", "ratio"]

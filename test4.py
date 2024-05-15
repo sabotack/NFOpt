@@ -84,62 +84,104 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         #     "R4040;R2002": {"capacity": 100},
         # } 
 
+        # example of traffic
         # flowTraffic = {
         #     "R1000;R3696": 120,
         #     "R1111;R3696": 100,
         # }
         
-        # edges = [(start, end) for start, end in (link.split(';') for link in links.keys())]
-        # graph = build_graph(edges)
-        # nodes = list(graph.keys())
+        edges = [(start, end) for start, end in (link.split(';') for link in links.keys())]
+        graph = build_graph(edges)
+        nodes = list(graph.keys())
         
-        # reachable_info = {}
-        # for node in graph:
-        #     reachable_info[node] = find_reachable_nodes(graph, node, max_depth=1000)
+        reachable_info = {}
+        for node in graph:
+            reachable_info[node] = find_reachable_nodes(graph, node, max_depth=1000)
 
-        # reachable_nodes = {node: info[0] for node, info in reachable_info.items()}
-        # reachable_edges = {node: info[1] for node, info in reachable_info.items()}
+        reachable_nodes = {node: info[0] for node, info in reachable_info.items()}
+        reachable_edges = {node: info[1] for node, info in reachable_info.items()}
+
+        #calculate how many values there are in total if you take into account all the flowTraffic and all the edges
+        # total = 0
+        # for flowTrafficKey in flowTraffic:
+        #     flowTrafficKeySplit = flowTrafficKey.split(";")
+        #     total += len(reachable_edges[flowTrafficKeySplit[0]])
+       
+        # print(f"before: {len(flowTraffic) * len(edges):,} ----> after: {total:,}")
+
+        #calculate statistics for how big of a difference there is for each level of max_depth and write to file
+        # depth_stats = []
+        # for depth in range(1, 10):
+        #     total = 0
+        #     all_traffic_nodes_reachable = True
+        #     for flowTrafficKey in flowTraffic:
+        #         flowTrafficKeySplit = flowTrafficKey.split(";")
+        #         reachable_nodes, reachable_edges = find_reachable_nodes(graph, flowTrafficKeySplit[0], max_depth=depth)
+        #         #check if the endnode is reachable from the startnode with the given depth
+        #         if flowTrafficKeySplit[1] not in reachable_nodes:
+        #             all_traffic_nodes_reachable = False
+        #         total += len(find_reachable_nodes(graph, flowTrafficKeySplit[0], max_depth=depth)[1])
+        #     depth_stats.append([depth, total, all_traffic_nodes_reachable])
+        #     print(f"depth: {depth}, total: {total:,}, all_traffic_nodes_reachable: {all_traffic_nodes_reachable}")
+        # data = pd.DataFrame(depth_stats, columns=["depth", "total", "all_traffic_nodes_reachable"])
+        # #format the data so ints are , separated
+        # data["total"] = data["total"].apply(lambda x: f"{x:,}")
+        # data.to_csv("depth_stats.csv", index=False, sep="\t")
+
+        # #calculate how many traffic values make up 99% of the total traffic
+        # # Calculate the total traffic
+        # total_traffic = sum(flowTraffic.values())
+
+        # # Sort the traffic values in descending order
+        # sorted_flowTraffic = sorted(flowTraffic.items(), key=lambda item: item[1], reverse=True)
+
+        # # Initialize a list to store the results
+        # results = []
+
+        # # Calculate the cutoff for each percentage from 50% to 100%
+        # for percentage in range(50, 101):
+        #     cutoff = total_traffic * (percentage / 100.0)
+        #     cumulative_total = 0
+        #     count = 0
+
+        #     # Iterate over the sorted traffic values and accumulate the total
+        #     for flowTrafficKey, value in sorted_flowTraffic:
+        #         cumulative_total += value
+        #         count += 1
+        #         if cumulative_total >= cutoff:
+        #             results.append((percentage, count))
+        #             break
+
+        # cutoff = total_traffic * 0.999
+        # cumulative_total = 0
+        # count = 0
+
+        # # Iterate over the sorted traffic values and accumulate the total
+        # for flowTrafficKey, value in sorted_flowTraffic:
+        #     cumulative_total += value
+        #     count += 1
+        #     if cumulative_total >= cutoff:
+        #         results.append((percentage, count))
+        #         break
+
+        
+
+        # # Create a DataFrame from the results
+        # df = pd.DataFrame(results, columns=['Percentage', 'Number of Traffic Values'])
+
+        # # Write the DataFrame to a CSV file
+        # df.to_csv('traffic_percentages.csv', index=False)
+
+        # print(f"Data written to 'traffic_percentages.csv'.")
+
+        return
  
-        # traffic = {}
-        # logger.info(f"processing traffic: {len(flowTraffic):,}")
-        # for flow in flowTraffic:
-        #     split = flow.split(";")
-        #     traffic[flow, split[0]] = flowTraffic[flow]
-        #     traffic[flow, split[1]] = -flowTraffic[flow]
-
-        m.setParam("logFile", "gurobi.log")
-
-        nodes = []
-        edges = []
-        for link in links:
-            split = link.split(";")
-            edges.append((split[0], split[1]))
-
-            if split[0] not in nodes:
-                nodes.append(split[0]) 
-            if split[1] not in nodes:
-                nodes.append(split[1])
-
         traffic = {}
-
-        sorted_flowTraffic = sorted(flowTraffic.items(), key=lambda item: item[1], reverse=True)
-        total_demand = sum(flowTraffic.values())
-        percentage = 0.90
-        demand_threshold = total_demand * percentage
-        cumulative_demand = 0
-        significant_flowTraffic = {}
-        for flow, value in sorted_flowTraffic:
-            if cumulative_demand < demand_threshold:
-                significant_flowTraffic[flow] = value
-                cumulative_demand += value
-            else:
-                break  # Stop adding values once the threshold is reached
-        
-
-        for flow in significant_flowTraffic:
+        logger.info(f"processing traffic: {len(flowTraffic):,}")
+        for flow in flowTraffic:
             split = flow.split(";")
-            traffic[flow, split[0]] = significant_flowTraffic[flow]
-            traffic[flow, split[1]] = -significant_flowTraffic[flow]
+            traffic[flow, split[0]] = flowTraffic[flow]
+            traffic[flow, split[1]] = -flowTraffic[flow]
 
 
         utilization = m.addVars(links, vtype=gp.GRB.CONTINUOUS, name="Utilization")
@@ -148,33 +190,25 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
             gp.GRB.MINIMIZE,
         )
 
-        logger.info(f"adding vars for flow: {len(significant_flowTraffic):,} and edges: {len(edges):,} so {len(significant_flowTraffic) * len(edges):,} flowVars in total")
-
-        flowVars = m.addVars(significant_flowTraffic.keys(), edges, name="flow")
-
-        logger.info(f"adding capacity constraints for {len(edges):,} edges")
+        flowVars = m.addVars(flowTraffic.keys(), edges, name="flow")
 
         m.addConstrs((flowVars.sum("*", start, end) <= links[start+";"+end]["capacity"] for start, end in edges), "cap")
-
-        logger.info(f"adding flow constraints for {len(significant_flowTraffic):,} flows and {len(nodes):,} nodes")
 
         m.addConstrs(
             (
                 flowVars.sum(flow, "*", node) + traffic[flow, node] == flowVars.sum(flow, node, "*")
                 if (flow, node) in traffic
                 else flowVars.sum(flow, "*", node) == flowVars.sum(flow, node, "*")
-                for flow in significant_flowTraffic
+                for flow in flowTraffic
                 for node in nodes
             ),
             "flow",
         )
 
-        logger.info(f"adding utilization constraints for {len(edges):,} edges")
-
         # Constraints to set the flow through each link as the sum of flows for all traffic pairs
         for start, end in edges:
             linkFlow = gp.quicksum(flowVars[flow, start, end] 
-                                   for flow in significant_flowTraffic 
+                                   for flow in flowTraffic 
                                    if (flow, start, end) in flowVars)
             
             m.addConstr(
@@ -188,11 +222,13 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         # Example usage after optimization
         if m.Status == gp.GRB.OPTIMAL:
             solution = m.getAttr("X", flowVars)
-            flow_values = {(flow, i, j): solution[flow, i, j] for flow in significant_flowTraffic for i, j in edges if solution[flow, i, j] > 0}
+            flow_values = {(flow, i, j): solution[flow, i, j] for flow in flowTraffic for i, j in edges if solution[flow, i, j] > 0}
             
             # Calculate ratios for all flows
-            all_paths_with_ratios = calculate_ratios_for_all_flows(flow_values, significant_flowTraffic, timestamp)
-                        
+            all_paths_with_ratios = calculate_ratios_for_all_flows(flow_values, flowTraffic, timestamp)
+            
+            print(all_paths_with_ratios)
+            
             dataUtils.writeDataToFile(
                 pd.DataFrame(
                     all_paths_with_ratios, columns=["timestamp", "flowName", "path", "ratio"]

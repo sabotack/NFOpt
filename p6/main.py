@@ -82,7 +82,8 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
     if args.model_type == CalcType.BASELINE.value:
         linkUtil = calcLinkUtil(links)
     elif args.model_type == CalcType.PATHS.value:
-        netflow.optMC(links, traffic)
+        netflow.optMC(args, links, traffic, timestamp)
+        return None
     else:
         linkUtil = linOpt.runLinearOptimizationModel(
             args, links, flows, traffic, timestamp, args.save_lp_models
@@ -174,6 +175,8 @@ def main():
                 # for timestamp in flows
             ],
         )
+    
+    return
 
     logger.info("Finished processing all timestamps!")
 

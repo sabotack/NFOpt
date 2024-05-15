@@ -17,23 +17,20 @@ options = {
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
 
-def find_reachable_nodes(graph, source, max_depth):
+def find_reachable_nodes(graph, edges, source):
     visited = set()
-    queue = deque([(source, 0)])  # Queue now stores tuples of (node, depth)
+    queue = deque([source])
     reachable_nodes = set()
-    reachable_edges = []
 
     while queue:
-        node, depth = queue.popleft()
-        if node not in visited and depth <= max_depth:
+        node = queue.popleft()
+        if node not in visited:
             visited.add(node)
             reachable_nodes.add(node)
-            if depth < max_depth:  # Only add neighbors if within max_depth
-                for neighbor in graph[node]:
-                    if neighbor not in visited:
-                        queue.append((neighbor, depth + 1))  # Increment depth
-                        reachable_edges.append((node, neighbor))  # Add the edge to the list
-    return reachable_nodes, reachable_edges
+            for neighbor in graph[node]:
+                if neighbor not in visited:
+                    queue.append(neighbor)
+    return reachable_nodes
 
 def build_graph(edges):
     graph = {}
@@ -84,33 +81,45 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         #     "R4040;R2002": {"capacity": 100},
         # } 
 
+        # example of traffic
         # flowTraffic = {
         #     "R1000;R3696": 120,
         #     "R1111;R3696": 100,
         # }
         
-        # edges = [(start, end) for start, end in (link.split(';') for link in links.keys())]
-        # graph = build_graph(edges)
-        # nodes = list(graph.keys())
+        edges = [(start, end) for start, end in (link.split(';') for link in links.keys())]
+        graph = build_graph(edges)
         
-        # reachable_info = {}
-        # for node in graph:
-        #     reachable_info[node] = find_reachable_nodes(graph, node, max_depth=1000)
+        reachable_nodes = {}
+        for node in graph:
+            reachable_nodes[node] = find_reachable_nodes(graph, edges, node)
+    
+        #calculate how many values there are in total if you take into account all the flowTraffic and all the edges
+        total = 0
+        for flowTrafficKey in flowTraffic:
+            flowTrafficKeySplit = flowTrafficKey.split(";")
+            total += len(reachable_nodes[flowTrafficKeySplit[0]])
+            total += 1
+        print(f"before: {len(flowTraffic) * len(edges):,} ----> after: {total:,}")
+        print("wow, very cool 😳 😳")
+        
+        print(find_reachable_nodes(graph, edges, "R1004"))
+        print(len(find_reachable_nodes(graph, edges, "R1004")))
 
-        # reachable_nodes = {node: info[0] for node, info in reachable_info.items()}
-        # reachable_edges = {node: info[1] for node, info in reachable_info.items()}
- 
-        # traffic = {}
-        # logger.info(f"processing traffic: {len(flowTraffic):,}")
-        # for flow in flowTraffic:
-        #     split = flow.split(";")
-        #     traffic[flow, split[0]] = flowTraffic[flow]
-        #     traffic[flow, split[1]] = -flowTraffic[flow]
+        return 
+    
 
-        m.setParam("logFile", "gurobi.log")
+        #calculate how many values there are in total
+        total = 0
+        for node in reachable_nodes:
+            total += len(reachable_nodes[node])
+            total += 1 # for the node itself
+        
+        print(total)
 
         nodes = []
         edges = []
+        logger.info(f"processing links: {len(links):,}")
         for link in links:
             split = link.split(";")
             edges.append((split[0], split[1]))
@@ -121,25 +130,11 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
                 nodes.append(split[1])
 
         traffic = {}
-
-        sorted_flowTraffic = sorted(flowTraffic.items(), key=lambda item: item[1], reverse=True)
-        total_demand = sum(flowTraffic.values())
-        percentage = 0.90
-        demand_threshold = total_demand * percentage
-        cumulative_demand = 0
-        significant_flowTraffic = {}
-        for flow, value in sorted_flowTraffic:
-            if cumulative_demand < demand_threshold:
-                significant_flowTraffic[flow] = value
-                cumulative_demand += value
-            else:
-                break  # Stop adding values once the threshold is reached
-        
-
-        for flow in significant_flowTraffic:
+        logger.info(f"processing traffic: {len(flowTraffic):,}")
+        for flow in flowTraffic:
             split = flow.split(";")
-            traffic[flow, split[0]] = significant_flowTraffic[flow]
-            traffic[flow, split[1]] = -significant_flowTraffic[flow]
+            traffic[flow, split[0]] = flowTraffic[flow]
+            traffic[flow, split[1]] = -flowTraffic[flow]
 
 
         utilization = m.addVars(links, vtype=gp.GRB.CONTINUOUS, name="Utilization")
@@ -148,33 +143,28 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
             gp.GRB.MINIMIZE,
         )
 
-        logger.info(f"adding vars for flow: {len(significant_flowTraffic):,} and edges: {len(edges):,} so {len(significant_flowTraffic) * len(edges):,} flowVars in total")
 
-        flowVars = m.addVars(significant_flowTraffic.keys(), edges, name="flow")
-
-        logger.info(f"adding capacity constraints for {len(edges):,} edges")
+        logger.info(f"processing flowVars: {(len(flowTraffic) * len(edges)):,}")
+        logger.info("crazy that its so much!!11 😳 😳")
+        flowVars = m.addVars(flowTraffic.keys(), edges, name="flow")
 
         m.addConstrs((flowVars.sum("*", start, end) <= links[start+";"+end]["capacity"] for start, end in edges), "cap")
-
-        logger.info(f"adding flow constraints for {len(significant_flowTraffic):,} flows and {len(nodes):,} nodes")
 
         m.addConstrs(
             (
                 flowVars.sum(flow, "*", node) + traffic[flow, node] == flowVars.sum(flow, node, "*")
                 if (flow, node) in traffic
                 else flowVars.sum(flow, "*", node) == flowVars.sum(flow, node, "*")
-                for flow in significant_flowTraffic
+                for flow in flowTraffic
                 for node in nodes
             ),
             "flow",
         )
 
-        logger.info(f"adding utilization constraints for {len(edges):,} edges")
-
         # Constraints to set the flow through each link as the sum of flows for all traffic pairs
         for start, end in edges:
             linkFlow = gp.quicksum(flowVars[flow, start, end] 
-                                   for flow in significant_flowTraffic 
+                                   for flow in flowTraffic 
                                    if (flow, start, end) in flowVars)
             
             m.addConstr(
@@ -188,11 +178,13 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         # Example usage after optimization
         if m.Status == gp.GRB.OPTIMAL:
             solution = m.getAttr("X", flowVars)
-            flow_values = {(flow, i, j): solution[flow, i, j] for flow in significant_flowTraffic for i, j in edges if solution[flow, i, j] > 0}
+            flow_values = {(flow, i, j): solution[flow, i, j] for flow in flowTraffic for i, j in edges if solution[flow, i, j] > 0}
             
             # Calculate ratios for all flows
-            all_paths_with_ratios = calculate_ratios_for_all_flows(flow_values, significant_flowTraffic, timestamp)
-                        
+            all_paths_with_ratios = calculate_ratios_for_all_flows(flow_values, flowTraffic, timestamp)
+            
+            print(all_paths_with_ratios)
+            
             dataUtils.writeDataToFile(
                 pd.DataFrame(
                     all_paths_with_ratios, columns=["timestamp", "flowName", "path", "ratio"]
