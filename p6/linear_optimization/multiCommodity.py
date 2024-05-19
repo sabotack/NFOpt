@@ -28,24 +28,26 @@ def runMultiCommodityOptimizer(links, traffic, timestamp):
     # Assuming 'options' is defined and contains Gurobi environment options
     with gp.Env(params=options) as env:
         m = gp.Model("multi_commodity_network_flow", env=env)
-        #add log file for gurobi
-        m.setParam('LogFile', f"tempLogFile_{timestamp}.log")
+        # add log file for gurobi
+        m.setParam("LogFile", f"tempLogFile_{timestamp}.log")
 
         # Define nodes based on the unique endpoints in links
         nodes = set()
         for link in links.values():
-            nodes.update([link['linkStart'], link['linkEnd']])
+            nodes.update([link["linkStart"], link["linkEnd"]])
 
         # Define arcs based on the links
-        arcs = {(link['linkStart'], link['linkEnd']): link['capacity'] for link in links.values()}
+        arcs = {
+            (link["linkStart"], link["linkEnd"]): link["capacity"]
+            for link in links.values()
+        }
         print("HERE 1")
 
         # Define commodities based on the unique source-destination pairs in traffic
         commodities = set(traffic.values())
         print("HERE 2")
 
-
-        #print out the flow
+        # print out the flow
         for k in commodities:
             for i, j in arcs:
                 print(f"flow_{k}_{i}_{j}")
@@ -57,13 +59,17 @@ def runMultiCommodityOptimizer(links, traffic, timestamp):
 
         # Objective: Minimize the sum of flows (can be adapted to include costs if available)
 
-
-        m.setObjective(gp.quicksum(flow[k, i, j] for k in commodities for i, j in arcs), GRB.MINIMIZE)
+        m.setObjective(
+            gp.quicksum(flow[k, i, j] for k in commodities for i, j in arcs),
+            GRB.MINIMIZE,
+        )
         print("HERE 4")
 
         # Capacity constraints for each arc
         for (i, j), capacity in arcs.items():
-            m.addConstr(sum(flow[k, i, j] for k in commodities) <= capacity, name=f"cap_{i}_{j}")
+            m.addConstr(
+                sum(flow[k, i, j] for k in commodities) <= capacity, name=f"cap_{i}_{j}"
+            )
 
         print("HERE 5")
 
@@ -73,8 +79,12 @@ def runMultiCommodityOptimizer(links, traffic, timestamp):
             if k % 10000 == 0:
                 print(f"Commodity {k} out of {len(commodities)}")
             for j in nodes:
-                inflow = gp.quicksum(flow[k, i, j] for i, _, j in arcs if (i, j) in arcs)
-                outflow = gp.quicksum(flow[k, j, i] for j, _, i in arcs if (j, i) in arcs)
+                inflow = gp.quicksum(
+                    flow[k, i, j] for i, _, j in arcs if (i, j) in arcs
+                )
+                outflow = gp.quicksum(
+                    flow[k, j, i] for j, _, i in arcs if (j, i) in arcs
+                )
                 # Demand is the net flow required at node j for commodity k
                 demand = traffic.get(k, {}).get(j, 0)
                 m.addConstr(inflow - outflow == demand, name=f"node_{j}_com_{k}")
@@ -82,11 +92,10 @@ def runMultiCommodityOptimizer(links, traffic, timestamp):
         # Solve the model
         m.write(f"multi_commodity_network_flow_{timestamp}.lp")
         m.optimize()
-        
 
         # Process the results
         if m.status == GRB.OPTIMAL:
-            solution = m.getAttr('X', flow)
+            solution = m.getAttr("X", flow)
             for k in commodities:
                 print(f"Commodity {k}:")
                 for i, j in arcs:

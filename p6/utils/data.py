@@ -19,6 +19,7 @@ DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
 RATIOS_DIR_NAME = "ratios"
 LINKS_DIR_NAME = "links"
+IMPROVED_PATHS_DIR_NAME = "improved_paths"
 
 CPU_THREADS = os.getenv("CPU_THREADS")
 if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
@@ -217,7 +218,7 @@ def readTraffic(day):
     return traffic
 
 
-def readRatios(date, type, dayNum, hour):
+def readPathRatios(date, dayNum, hour, type=None):
     """
     Reads the path ratios from the dataset and returns a dictionary with the ratios grouped by timestamp and flowName.
 
@@ -238,25 +239,43 @@ def readRatios(date, type, dayNum, hour):
     """
 
     try:
-        ratios = {}
+
+        if type is None:
+            type = "paths"
+
+        pathRatios = {}
 
         dataRatios = pd.read_csv(
             f"{DATA_OUTPUT_DIR}/day{dayNum}/{RATIOS_DIR_NAME}/{type}/{date}_{hour}_ratios.csv",
             names=["flowName", "path", "ratio"],
             engine="pyarrow",
+            skiprows=1,
         )
 
-        dataRatios.set_index(["flowName", "path"], inplace=True)
-        ratios = dataRatios.to_dict()["ratio"]
+        # Create a dictionary to hold the path ratios
+        pathRatios = {}
+
+        # Iterate over the rows of the DataFrame and populate the dictionary
+        for _, row in dataRatios.iterrows():
+            flowName = row["flowName"]
+            path = row["path"]
+            ratio = row["ratio"]
+
+            # If the flowName is not already in the dictionary, add it
+            if flowName not in pathRatios:
+                pathRatios[flowName] = {}
+
+            # Add the path and ratio to the nested dictionary for the flowName
+            pathRatios[flowName][path] = ratio
 
         logger.info(
-            f"Finished reading day{dayNum} {type} ratios ({date}_{hour}), number of groups: {str(len(ratios))}"
+            f"Finished reading day{dayNum} {type} ratios ({date}_{hour}), number of groups: {str(len(pathRatios))}"
         )
     except Exception as e:
         logger.error(f"Error reading ratios: {e}")
         sys.exit(1)
 
-    return ratios
+    return pathRatios
 
 
 def writeDataToFile(data, outputFile, parserArgs):
@@ -283,6 +302,12 @@ def writeDataToFile(data, outputFile, parserArgs):
                 if parserArgs.use_ratios:
                     day, ratioType, date = parserArgs.use_ratios
                     filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_using_ratios_day{day}_{date}_{ratioType}.csv"
+                elif parserArgs.use_paths:
+                    day, date, useratios = parserArgs.use_paths
+                    if useratios == "True":
+                        filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_using_paths_and_ratios_day{day}_{date}.csv"
+                    else:
+                        filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}_using_paths_day{day}_{date}_{useratios}.csv"
                 else:
                     filePath = f"{dayOutputDir}/{timestamp}_{parserArgs.model_type}.csv"
             case "ratioData":
@@ -292,7 +317,11 @@ def writeDataToFile(data, outputFile, parserArgs):
                     os.makedirs(ratiosDir)
                 time = data["timestamp"][0][4:-6]
                 data.drop(["timestamp"], axis=1, inplace=True)
-                filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
+                if parserArgs.improve_worst_flows:
+                    percentageImproved = parserArgs.improve_worst_flows
+                    filePath = f"{ratiosDir}/{timestamp}_{time}_ratios_improved_for_worst_{percentageImproved}%.csv"
+                else:
+                    filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
             case "linkData":
                 linksDir = f"{dayOutputDir}/{LINKS_DIR_NAME}/{parserArgs.model_type}"
                 if not os.path.exists(linksDir):
@@ -300,6 +329,14 @@ def writeDataToFile(data, outputFile, parserArgs):
 
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
                 filePath = f"{linksDir}/{timestamp}_{time}_links.csv"
+            case "improvedPathsData":
+                improvedPercentage = parserArgs.improve_worst_flows * 100
+                pathsDir = f"{dayOutputDir}/{IMPROVED_PATHS_DIR_NAME}/{parserArgs.model_type}/{improvedPercentage}%"
+                if not os.path.exists(pathsDir):
+                    os.makedirs(pathsDir)
+                time = data["timestamp"][0][4:-6]
+                filePath = f"{pathsDir}/{timestamp}_{time}_improved_links.csv"
+                # maybe remove header!!!!!!!!!!!!!!!!!!
             case _:
                 raise ValueError(f"Invalid output file: {outputFile}")
 

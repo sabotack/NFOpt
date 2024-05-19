@@ -17,6 +17,7 @@ options = {
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
 
+
 def find_reachable_nodes(graph, source, max_depth):
     visited = set()
     queue = deque([(source, 0)])  # Queue now stores tuples of (node, depth)
@@ -32,8 +33,11 @@ def find_reachable_nodes(graph, source, max_depth):
                 for neighbor in graph[node]:
                     if neighbor not in visited:
                         queue.append((neighbor, depth + 1))  # Increment depth
-                        reachable_edges.append((node, neighbor))  # Add the edge to the list
+                        reachable_edges.append(
+                            (node, neighbor)
+                        )  # Add the edge to the list
     return reachable_nodes, reachable_edges
+
 
 def build_graph(edges):
     graph = {}
@@ -47,7 +51,7 @@ def build_graph(edges):
     return graph
 
 
-def optMC(parserArgs, links, flowTraffic, timestamp):
+def optMC(parserArgs, links, flowTraffic, flows, timestamp):
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         m = gp.Model("netflow", env=env)
         # example of link data
@@ -63,7 +67,7 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         #     "X;C": {"capacity": 100},
         #     "X;Y": {"capacity": 100},
         #     "Y;F": {"capacity": 100},
-        # } 
+        # }
 
         # links = {
         #     "R1000;R1002": {"capacity": 100},
@@ -77,7 +81,7 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         #     "R1111;R1003": {"capacity": 100},
         #     "R1111;R4040": {"capacity": 100},
         #     "R4040;R2002": {"capacity": 100},
-        # } 
+        # }
 
         # flowTraffic = {
         #     "R1000;R3696": 120,
@@ -98,15 +102,19 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
             edges.append((split[0], split[1]))
 
             if split[0] not in nodes:
-                nodes.append(split[0]) 
+                nodes.append(split[0])
             if split[1] not in nodes:
                 nodes.append(split[1])
 
         traffic = {}
-
-        sorted_flowTraffic = sorted(flowTraffic.items(), key=lambda item: item[1], reverse=True)
+        sorted_flowTraffic = sorted(
+            flowTraffic.items(), key=lambda item: item[1], reverse=True
+        )
         total_demand = sum(flowTraffic.values())
-        percentage = 0.75
+        if not parserArgs.improve_worst_flows:
+            percentage = 0.5
+        else:
+            percentage = 1
         demand_threshold = total_demand * percentage
         cumulative_demand = 0
         significant_flowTraffic = {}
@@ -116,7 +124,7 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
                 cumulative_demand += value
             else:
                 break  # Stop adding values once the threshold is reached
-        
+
         for flow in significant_flowTraffic:
             split = flow.split(";")
             traffic[flow, split[0]] = significant_flowTraffic[flow]
@@ -128,21 +136,34 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
             gp.GRB.MINIMIZE,
         )
 
-        logger.info(f"adding vars for flow: {len(significant_flowTraffic):,} and edges: {len(edges):,} so {len(significant_flowTraffic) * len(edges):,} flowVars in total")
+        logger.info(
+            f"adding vars for flow: {len(significant_flowTraffic):,} and edges: {len(edges):,} so {len(significant_flowTraffic) * len(edges):,} flowVars in total"
+        )
 
         flowVars = m.addVars(significant_flowTraffic.keys(), edges, name="flow")
 
         logger.info(f"adding capacity constraints for {len(edges):,} edges")
 
-        m.addConstrs((flowVars.sum("*", start, end) <= links[start+";"+end]["capacity"] for start, end in edges), "cap")
+        m.addConstrs(
+            (
+                flowVars.sum("*", start, end) <= links[start + ";" + end]["capacity"]
+                for start, end in edges
+            ),
+            "cap",
+        )
 
-        logger.info(f"adding flow constraints for {len(significant_flowTraffic):,} flows and {len(nodes):,} nodes")
+        logger.info(
+            f"adding flow constraints for {len(significant_flowTraffic):,} flows and {len(nodes):,} nodes"
+        )
 
         m.addConstrs(
             (
-                flowVars.sum(flow, "*", node) + traffic[flow, node] == flowVars.sum(flow, node, "*")
-                if (flow, node) in traffic
-                else flowVars.sum(flow, "*", node) == flowVars.sum(flow, node, "*")
+                (
+                    flowVars.sum(flow, "*", node) + traffic[flow, node]
+                    == flowVars.sum(flow, node, "*")
+                    if (flow, node) in traffic
+                    else flowVars.sum(flow, "*", node) == flowVars.sum(flow, node, "*")
+                )
                 for flow in significant_flowTraffic
                 for node in nodes
             ),
@@ -153,12 +174,15 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
 
         # Constraints to set the flow through each link as the sum of flows for all traffic pairs
         for start, end in edges:
-            linkFlow = gp.quicksum(flowVars[flow, start, end] 
-                                   for flow in significant_flowTraffic 
-                                   if (flow, start, end) in flowVars)
-            
+            linkFlow = gp.quicksum(
+                flowVars[flow, start, end]
+                for flow in significant_flowTraffic
+                if (flow, start, end) in flowVars
+            )
+
             m.addConstr(
-                linkFlow == utilization[f"{start};{end}"] * links[f"{start};{end}"]["capacity"],
+                linkFlow
+                == utilization[f"{start};{end}"] * links[f"{start};{end}"]["capacity"],
                 f"util_{start};{end}",
             )
 
@@ -170,18 +194,25 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
 
     if m.Status == gp.GRB.OPTIMAL:
         solution = m.getAttr("X", flowVars)
-        flow_values = {(flow, i, j): solution[flow, i, j] for flow in significant_flowTraffic for i, j in edges if solution[flow, i, j] > 0}
+        flow_values = {
+            (flow, i, j): solution[flow, i, j]
+            for flow in significant_flowTraffic
+            for i, j in edges
+            if solution[flow, i, j] > 0
+        }
 
         unique_flows = set()
 
         # New dictionary to hold the threshold values for each flow
-        threshold_values = {flow: flowTraffic[flow] * threshold_percentage for flow in flowTraffic}
+        threshold_values = {
+            flow: flowTraffic[flow] * threshold_percentage for flow in flowTraffic
+        }
 
         new_flow_values = {}
         for (flow, start, end), value in flow_values.items():
             # Get the threshold value for the current flow
             current_threshold_value = threshold_values[flow]
-            
+
             # Compare each flow value with its corresponding threshold value
             if value >= current_threshold_value:
                 # Check if the flow is unique and print it
@@ -195,35 +226,68 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         flow_values = new_flow_values
 
         # Calculate ratios for all flows
-        #calculate time taken to calculate ratios
+        # calculate time taken to calculate ratios
         startTime = pd.Timestamp.now()
-        all_paths_with_ratios = calculate_ratios_for_all_flows(flow_values, significant_flowTraffic, timestamp)
+        all_paths_with_ratios = calculate_ratios_for_all_flows(
+            flow_values, significant_flowTraffic, timestamp
+        )
         endTime = pd.Timestamp.now()
 
         logger.info(f"Time taken to calculate ratios: {endTime - startTime}")
+        if parserArgs.improve_worst_flows:
+            # Remove the ratios from the paths
+            paths_without_ratios = [row[:-1] for row in all_paths_with_ratios]
+
+            # Create a dictionary to hold the updated flows
+            updatedFlows = {}
+            for row in paths_without_ratios:
+                flowName = row[1]
+                if flowName not in updatedFlows:
+                    updatedFlows[flowName] = []
+                updatedFlows[flowName].append(row[2])
+
+            for flow in flows:
+                if flow not in updatedFlows:
+                    updatedFlows[flow] = flows[flow]
+
+            # Convert the dictionary to a list of lists and insert the timestamp
+            updatedFlowsList = [
+                [timestamp, flowName, path]
+                for flowName, paths in updatedFlows.items()
+                for path in paths
+            ]
+
+            dataUtils.writeDataToFile(
+                pd.DataFrame(
+                    updatedFlowsList, columns=["timestamp", "flowName", "path"]
+                ),
+                "improvedPathsData",
+                parserArgs,
+            )
+            return
 
         dataUtils.writeDataToFile(
             pd.DataFrame(
-                all_paths_with_ratios, columns=["timestamp", "flowName", "path", "ratio"]
+                all_paths_with_ratios,
+                columns=["timestamp", "flowName", "path", "ratio"],
             ),
             "ratioData",
             parserArgs,
         )
-        
+
     return
 
 
 def find_paths(flow_values, flowName, source, target):
     paths = []
-    queue = deque([(source, [source], float('inf'))])
+    queue = deque([(source, [source], float("inf"))])
     visited = set()
     i = 0
     while queue:
-        i+=1
+        i += 1
         if i % 10000 == 0:
             logger.info(f"processed {i:,} paths out of {len(queue):,} remaining")
         node, path, flow = queue.popleft()
-
 
         if (node, flow) in visited:
             continue
@@ -255,5 +319,7 @@ def calculate_ratios_for_all_flows(flow_values, flowTraffic, timestamp):
         total_flow = sum(flow for _, flow in paths)
         # Ensure each path has its own flowName
         for path, flow in paths:
-            all_paths_with_ratios.append([timestamp, flow_id, (';'.join(path)), flow / total_flow])     
+            all_paths_with_ratios.append(
+                [timestamp, flow_id, (";".join(path)), flow / total_flow]
+            )
     return all_paths_with_ratios
