@@ -235,6 +235,10 @@ def main():
 
     if args.improve_worst_flows:
         percentageToBeImproved = args.improve_worst_flows
+        if args.model_type == CalcType.PATHS.value:
+            parser.error(
+                "Cannot improve worst flows with the specified model type."
+            )
         if percentageToBeImproved < 0 or percentageToBeImproved > 100:
             parser.error(
                 "Invalid percentage value. Please use a number between 0 and 100."
