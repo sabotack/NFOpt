@@ -71,7 +71,7 @@ def runLinearOptimizationModel(
                 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
                 m.setObjective(
                     gp.quicksum(
-                        (utilization[link] / links[link]["capacity"] for link in links)
+                        (utilization[link] for link in links)
                     ),
                     GRB.MINIMIZE,
                 )
