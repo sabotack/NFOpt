@@ -2,7 +2,9 @@
 <br />
 <div align="center">
   <!-- LOGO MAYBE -->
-
+  <a href="https://github.com/sabotack/NFOpt">
+    <img src="https://cdn.discordapp.com/attachments/714845010344018003/1244656526631763999/logo.png?ex=6655e838&is=665496b8&hm=4f22f438c3951973deec536f03c582241ef1ffdee54f34bf62c1042f9bf8c064&" alt="Logo" width="300" height="180">
+  </a>
   <h3 align="center">NFOpt</h3>
 
   <p align="center">
