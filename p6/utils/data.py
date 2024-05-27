@@ -19,7 +19,6 @@ DATASET_LINKS_NAME = os.getenv("DATASET_LINKS_NAME")
 DATA_OUTPUT_DIR = os.getenv("DATA_OUTPUT_DIR")
 RATIOS_DIR_NAME = "ratios"
 LINKS_DIR_NAME = "links"
-IMPROVED_PATHS_DIR_NAME = "improved_paths"
 
 CPU_THREADS = os.getenv("CPU_THREADS")
 if CPU_THREADS is not None and CPU_THREADS.isdigit() and int(CPU_THREADS) > 0:
@@ -146,9 +145,6 @@ def readLinks():
         )
         dataCapacity.set_index("linkName", inplace=True)
         links = dataCapacity.to_dict("index")
-        # remove links that start and end at the same router - update: this is not necessary cant find any duplicates
-        # copilot cooked here 🤨
-        # links = {k: v for k, v in links.items() if k[:5] != k[5:]}
         logger.info("Finished reading links, number of links: " + str(len(links)))
 
         logger.info("END: reading links")
@@ -317,11 +313,7 @@ def writeDataToFile(data, outputFile, parserArgs):
                     os.makedirs(ratiosDir)
                 time = data["timestamp"][0][4:-6]
                 data.drop(["timestamp"], axis=1, inplace=True)
-                if parserArgs.improve_worst_flows:
-                    percentageImproved = parserArgs.improve_worst_flows
-                    filePath = f"{ratiosDir}/{timestamp}_{time}_ratios_improved_for_worst_{percentageImproved}%.csv"
-                else:
-                    filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
+                filePath = f"{ratiosDir}/{timestamp}_{time}_ratios.csv"
             case "linkData":
                 linksDir = f"{dayOutputDir}/{LINKS_DIR_NAME}/{parserArgs.model_type}"
                 if not os.path.exists(linksDir):
@@ -329,14 +321,6 @@ def writeDataToFile(data, outputFile, parserArgs):
 
                 time = (data["timestamp"][0][:3] + data["timestamp"][0][4:-6]).lower()
                 filePath = f"{linksDir}/{timestamp}_{time}_links.csv"
-            case "improvedPathsData":
-                improvedPercentage = parserArgs.improve_worst_flows * 100
-                pathsDir = f"{dayOutputDir}/{IMPROVED_PATHS_DIR_NAME}/{parserArgs.model_type}/{improvedPercentage}%"
-                if not os.path.exists(pathsDir):
-                    os.makedirs(pathsDir)
-                time = data["timestamp"][0][4:-6]
-                filePath = f"{pathsDir}/{timestamp}_{time}_improved_links.csv"
-                # maybe remove header!!!!!!!!!!!!!!!!!!
             case _:
                 raise ValueError(f"Invalid output file: {outputFile}")
 

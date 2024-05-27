@@ -95,25 +95,12 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
     if args.model_type == CalcType.BASELINE.value:
         linkUtil = calcLinkUtil(links)
     elif args.model_type == CalcType.PATHS.value:
-        netflow.optMC(args, links, traffic, flows, timestamp)
+        netflow.optMC(args, links, traffic, timestamp)
         return None
     else:
         linkUtil = linOpt.runLinearOptimizationModel(
             args, links, flows, traffic, timestamp, args.save_lp_models
         )
-
-    if args.improve_worst_flows:
-        percentageToBeImproved = args.improve_worst_flows
-        logger.info(f"Improving worst flows by {percentageToBeImproved}%")
-        trafficThatNeedsImprovement = findWorstTrafficFromLinks(
-            links, linkUtil, percentageToBeImproved
-        )
-        logger.info(f"Improving {len(trafficThatNeedsImprovement)} flows")
-        # make a copy of traffic data which only contains the flows that need improvement
-        trafficThatNeedsImprovement = {
-            flow: traffic[flow] for flow in trafficThatNeedsImprovement
-        }
-        netflow.optMC(args, links, trafficThatNeedsImprovement, flows, timestamp)
 
     return [
         timestamp,
@@ -121,29 +108,6 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
         max(linkUtil.values()),
         stats.mean(linkUtil.values()),
     ]
-
-
-def findWorstTrafficFromLinks(links, linkUtil, percentWorst):
-    sortedLinkUtil = sorted(linkUtil.items(), key=lambda item: item[1], reverse=True)
-    totalUtil = sum(linkUtil.values())
-    # calculate average util
-    averageUtil = totalUtil / len(linkUtil)
-    threshold = totalUtil * percentWorst
-    cumulativeUtil = 0
-    trafficToImprove = []
-    for link, util in sortedLinkUtil:
-        if util < averageUtil:
-            # not worth improving
-            break
-        if cumulativeUtil <= threshold:
-            trafficToImprove += links[link]["listFlows"]
-            cumulativeUtil += util
-        else:
-            break
-    # count how many duplicates there are:
-    trafficToImprove = list(dict.fromkeys(trafficToImprove))
-    return trafficToImprove
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -184,12 +148,6 @@ def main():
         nargs=3,
         metavar=("DAY", "DATE", "USERATIOS?"),
         help="use existing paths for calculations",
-    )
-    parser.add_argument(
-        "-iwf",
-        "--improve-worst-flows",
-        type=float,
-        help="improve flows that contribute to the worst impact on link utilization",
     )
 
     args = parser.parse_args()
@@ -233,17 +191,6 @@ def main():
         if useratios not in ["True", "False"]:
             parser.error("Invalid useratios value. Please use 'True' or 'False'.")
 
-    if args.improve_worst_flows:
-        percentageToBeImproved = args.improve_worst_flows
-        if args.model_type == CalcType.PATHS.value:
-            parser.error(
-                "Cannot improve worst flows with the specified model type."
-            )
-        if percentageToBeImproved < 0 or percentageToBeImproved > 100:
-            parser.error(
-                "Invalid percentage value. Please use a number between 0 and 100."
-            )
-
     # Set start method to spawn to avoid issues with multiprocessing on Windows
     set_start_method("spawn")
 
@@ -260,7 +207,7 @@ def main():
             [
                 (timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
                 for timestamp in list(flows.keys())[:1]
-                # for timestamp in flows
+                #for timestamp in flows
             ],
         )
 

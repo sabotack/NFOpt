@@ -17,82 +17,9 @@ options = {
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
 
-
-def find_reachable_nodes(graph, source, max_depth):
-    visited = set()
-    queue = deque([(source, 0)])  # Queue now stores tuples of (node, depth)
-    reachable_nodes = set()
-    reachable_edges = []
-
-    while queue:
-        node, depth = queue.popleft()
-        if node not in visited and depth <= max_depth:
-            visited.add(node)
-            reachable_nodes.add(node)
-            if depth < max_depth:  # Only add neighbors if within max_depth
-                for neighbor in graph[node]:
-                    if neighbor not in visited:
-                        queue.append((neighbor, depth + 1))  # Increment depth
-                        reachable_edges.append(
-                            (node, neighbor)
-                        )  # Add the edge to the list
-    return reachable_nodes, reachable_edges
-
-
-def build_graph(edges):
-    graph = {}
-    for start, end in edges:
-        if start not in graph:
-            graph[start] = []
-        if end not in graph:
-            graph[end] = []
-        graph[start].append(end)
-        graph[end].append(start)
-    return graph
-
-
-def optMC(parserArgs, links, flowTraffic, flows, timestamp):
+def optMC(parserArgs, links, flowTraffic, timestamp):
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         m = gp.Model("netflow", env=env)
-        # example of link data
-        # links = {
-        #     "A;B": {"capacity": 100},
-        #     "A;C": {"capacity": 80},
-        #     "B;D": {"capacity": 140},
-        #     "B;E": {"capacity": 120},
-        #     "C;F": {"capacity": 70},
-        #     "D;G": {"capacity": 120},
-        #     "E;G": {"capacity": 120},
-        #     "F;G": {"capacity": 120},
-        #     "X;C": {"capacity": 100},
-        #     "X;Y": {"capacity": 100},
-        #     "Y;F": {"capacity": 100},
-        # }
-
-        # links = {
-        #     "R1000;R1002": {"capacity": 100},
-        #     "R1000;R1003": {"capacity": 80},
-        #     "R1002;R2000": {"capacity": 140},
-        #     "R1002;R2001": {"capacity": 120},
-        #     "R1003;R2002": {"capacity": 70},
-        #     "R2000;R3696": {"capacity": 120},
-        #     "R2001;R3696": {"capacity": 120},
-        #     "R2002;R3696": {"capacity": 120},
-        #     "R1111;R1003": {"capacity": 100},
-        #     "R1111;R4040": {"capacity": 100},
-        #     "R4040;R2002": {"capacity": 100},
-        # }
-
-        # flowTraffic = {
-        #     "R1000;R3696": 120,
-        #     "R1111;R3696": 100,
-        # }
-
-        # flowTraffic = {
-        #     "A;G": 100,
-        #     "X;G": 100,
-        # }
-
         m.setParam("logFile", "gurobi.log")
 
         nodes = []
@@ -111,10 +38,7 @@ def optMC(parserArgs, links, flowTraffic, flows, timestamp):
             flowTraffic.items(), key=lambda item: item[1], reverse=True
         )
         total_demand = sum(flowTraffic.values())
-        if not parserArgs.improve_worst_flows:
-            percentage = 0.5
-        else:
-            percentage = 1
+        percentage = 0.2 #TODO: Add this as a parameter
         demand_threshold = total_demand * percentage
         cumulative_demand = 0
         significant_flowTraffic = {}
@@ -186,7 +110,7 @@ def optMC(parserArgs, links, flowTraffic, flows, timestamp):
                 f"util_{start};{end}",
             )
 
-        m.write("netflow.lp")
+        m.write("multiCommodityFlowProblem.lp")
         m.optimize()
 
     # Define the threshold percentage (e.g., 10%)
@@ -220,8 +144,8 @@ def optMC(parserArgs, links, flowTraffic, flows, timestamp):
                     unique_flows.add(flow)
                 new_flow_values[(flow, start, end)] = value
 
-        logger.info(f"Flows before: {len(significant_flowTraffic)}")
-        logger.info(f"Flows after: {len(unique_flows)}")
+        logger.info(f"Flows before paths cut-off: {len(significant_flowTraffic)}")
+        logger.info(f"Flows after paths cut-off: {len(unique_flows)}")
 
         flow_values = new_flow_values
 
@@ -234,37 +158,6 @@ def optMC(parserArgs, links, flowTraffic, flows, timestamp):
         endTime = pd.Timestamp.now()
 
         logger.info(f"Time taken to calculate ratios: {endTime - startTime}")
-        if parserArgs.improve_worst_flows:
-            # Remove the ratios from the paths
-            paths_without_ratios = [row[:-1] for row in all_paths_with_ratios]
-
-            # Create a dictionary to hold the updated flows
-            updatedFlows = {}
-            for row in paths_without_ratios:
-                flowName = row[1]
-                if flowName not in updatedFlows:
-                    updatedFlows[flowName] = []
-                updatedFlows[flowName].append(row[2])
-
-            for flow in flows:
-                if flow not in updatedFlows:
-                    updatedFlows[flow] = flows[flow]
-
-            # Convert the dictionary to a list of lists and insert the timestamp
-            updatedFlowsList = [
-                [timestamp, flowName, path]
-                for flowName, paths in updatedFlows.items()
-                for path in paths
-            ]
-
-            dataUtils.writeDataToFile(
-                pd.DataFrame(
-                    updatedFlowsList, columns=["timestamp", "flowName", "path"]
-                ),
-                "improvedPathsData",
-                parserArgs,
-            )
-            return
 
         dataUtils.writeDataToFile(
             pd.DataFrame(
@@ -282,11 +175,7 @@ def find_paths(flow_values, flowName, source, target):
     paths = []
     queue = deque([(source, [source], float("inf"))])
     visited = set()
-    i = 0
     while queue:
-        i += 1
-        if i % 10000 == 0:
-            logger.info(f"processed {i:,} paths out of {len(queue):,} remaining")
         node, path, flow = queue.popleft()
 
         if (node, flow) in visited:
@@ -309,11 +198,7 @@ def find_paths(flow_values, flowName, source, target):
 # Function to calculate ratios for all paths
 def calculate_ratios_for_all_flows(flow_values, flowTraffic, timestamp):
     all_paths_with_ratios = []
-    i = 0
     for flow_id, flow_amount in flowTraffic.items():
-        i += 1
-        if i % 5000 == 0:
-            logger.info(f"processed {i:,} flows out of {len(flowTraffic):,} remaining")
         source, target = flow_id.split(";")
         paths = find_paths(flow_values, flow_id, source, target)
         total_flow = sum(flow for _, flow in paths)
