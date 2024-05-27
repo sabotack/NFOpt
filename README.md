@@ -66,7 +66,7 @@ The optimizer can generate a baseline using uniform path splitting ratios for tr
 ### Data Format
 Before you can start using the tool, ensure the following steps are completed:
 
-1. **Data Formatting:** Make sure your data is formatted according to the examples provided in the `example-data` directory.
+1. **Data Formatting:** Make sure your data is formatted according to the examples provided in the `sample-data` directory.
 2. **Environment Variables:** Set the environment variable for the data directory correctly in the `variables.env` file. You can use the `variables.env-example` file as a reference for the required environment variables and their values. Rename `variables.env-example` to `.env` and update it with the appropriate information.
 
 ### Usage

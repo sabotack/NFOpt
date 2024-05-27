@@ -6,11 +6,11 @@ import multiprocessing as mp
 
 from multiprocessing import set_start_method
 
-from p6.calc_type_enum import CalcType
-from p6.utils import data as dataUtils
-from p6.utils import network as nwUtils
-from p6.utils import log
-from p6.linear_optimization import netflow, optimizer as linOpt
+from nfopt.calc_type_enum import CalcType
+from nfopt.utils import data as dataUtils
+from nfopt.utils import network as nwUtils
+from nfopt.utils import log
+from nfopt.linear_optimization import netflow, optimizer as linOpt
 
 logger = log.setupCustomLogger(__name__)
 
@@ -211,7 +211,7 @@ def main():
             ],
         )
 
-    if results[0] is not None:
+    if results is not None:
         results.sort()
 
         dataUtils.writeDataToFile(

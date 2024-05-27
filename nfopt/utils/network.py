@@ -1,4 +1,4 @@
-from p6.utils import log
+from nfopt.utils import log
 
 logger = log.setupCustomLogger(__name__)
 

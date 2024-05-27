@@ -4,12 +4,14 @@ import pandas as pd
 from collections import deque
 
 from dotenv import load_dotenv
-from p6.utils import log
-from p6.utils import data as dataUtils
-
+from nfopt.utils import log
+from nfopt.utils import data as dataUtils
 
 logger = log.setupCustomLogger(__name__)
 load_dotenv("variables.env")
+
+NETFLOW_FLOW_THRESHOLD = float(os.getenv("NETFLOW_FLOW_THRESHOLD"))
+NETFLOW_PATHS_THRESHOLD = float(os.getenv("NETFLOW_PATHS_THRESHOLD"))
 
 options = {
     "WLSACCESSID": os.getenv("WLSACCESSID"),
@@ -19,9 +21,24 @@ options = {
 
 
 def optMC(parserArgs, links, flowTraffic, timestamp):
-    with gp.Env(params=options) as env, gp.Model(env=env) as m:
-        m = gp.Model("netflow", env=env)
+    """
+    Runs multi-commodity flow problem optimization on the data using Gurobi. Writes a file with the new paths and their ratios.
 
+    ### Parameters:
+    ----------
+    #### parserArgs: argparse.Namespace
+    The parser arguments.
+
+    #### links: dict
+    The links in the network, indexed by linkName.
+
+    #### flowTraffic: dict
+    The traffic for each source-destination pair.
+
+    #### timestamp: string
+    The timestamp for the current data.
+    """
+    with gp.Env(params=options) as env, gp.Model("netflow", env=env) as m:
         nodes = []
         edges = []
         for link in links:
@@ -37,9 +54,11 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         sorted_flowTraffic = sorted(
             flowTraffic.items(), key=lambda item: item[1], reverse=True
         )
+
         total_demand = sum(flowTraffic.values())
-        percentage = 0.2  # TODO: Add this as a parameter
+        percentage = NETFLOW_FLOW_THRESHOLD
         demand_threshold = total_demand * percentage
+
         cumulative_demand = 0
         significant_flowTraffic = {}
         for flow, value in sorted_flowTraffic:
@@ -114,7 +133,7 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         m.optimize()
 
     # Define the threshold percentage (e.g., 10%)
-    threshold_percentage = 0.001
+    threshold_percentage = 1 - NETFLOW_PATHS_THRESHOLD
 
     if m.Status == gp.GRB.OPTIMAL:
         solution = m.getAttr("X", flowVars)

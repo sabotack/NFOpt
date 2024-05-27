@@ -4,8 +4,8 @@ import pandas as pd
 from collections import deque
 
 from dotenv import load_dotenv
-from p6.utils import log
-from p6.utils import data as dataUtils
+from nfopt.utils import log
+from nfopt.utils import data as dataUtils
 
 
 logger = log.setupCustomLogger(__name__)
@@ -52,8 +52,7 @@ def build_graph(edges):
 
 
 def optMC(parserArgs, links, flowTraffic, flows, timestamp):
-    with gp.Env(params=options) as env, gp.Model(env=env) as m:
-        m = gp.Model("netflow", env=env)
+    with gp.Env(params=options) as env, gp.Model("netflow", env=env) as m:
         # example of link data
         links = {
             "A;B": {"capacity": 100},

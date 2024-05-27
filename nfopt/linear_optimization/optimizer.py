@@ -6,9 +6,9 @@ import gurobipy as gp
 from gurobipy import GRB
 from dotenv import load_dotenv
 
-from p6.calc_type_enum import CalcType
-from p6.utils import log
-from p6.utils import data as dataUtils
+from nfopt.calc_type_enum import CalcType
+from nfopt.utils import log
+from nfopt.utils import data as dataUtils
 
 logger = log.setupCustomLogger(__name__)
 
@@ -52,10 +52,7 @@ def runLinearOptimizationModel(
     logger.info("Started running linear optimization model...")
     model = parserArgs.model_type
 
-    with gp.Env(params=options) as env, gp.Model(env=env) as m:
-        # Create optimization model based on the input model
-        m = gp.Model("network_optimization", env=env)
-
+    with gp.Env(params=options) as env, gp.Model("network_optimization", env=env) as m:
         # Decision variables for path ratios for each source-destination pair
         path_ratios = m.addVars(
             [
