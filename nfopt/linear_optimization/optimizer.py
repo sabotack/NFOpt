@@ -6,9 +6,9 @@ import gurobipy as gp
 from gurobipy import GRB
 from dotenv import load_dotenv
 
-from p6.calc_type_enum import CalcType
-from p6.utils import log
-from p6.utils import data as dataUtils
+from nfopt.calc_type_enum import CalcType
+from nfopt.utils import log
+from nfopt.utils import data as dataUtils
 
 logger = log.setupCustomLogger(__name__)
 

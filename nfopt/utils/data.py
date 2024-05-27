@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 import multiprocessing as mp
 
-from p6.utils import log
+from nfopt.utils import log
 from functools import partial
 from datetime import datetime
 from dotenv import load_dotenv
