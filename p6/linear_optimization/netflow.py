@@ -17,6 +17,7 @@ options = {
     "LICENSEID": int(os.getenv("LICENSEID")),
 }
 
+
 def optMC(parserArgs, links, flowTraffic, timestamp):
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         m = gp.Model("netflow", env=env)
@@ -37,7 +38,7 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
             flowTraffic.items(), key=lambda item: item[1], reverse=True
         )
         total_demand = sum(flowTraffic.values())
-        percentage = 0.2 #TODO: Add this as a parameter
+        percentage = 0.2  # TODO: Add this as a parameter
         demand_threshold = total_demand * percentage
         cumulative_demand = 0
         significant_flowTraffic = {}

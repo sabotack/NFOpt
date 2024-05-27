@@ -70,9 +70,7 @@ def runLinearOptimizationModel(
             case CalcType.AVERAGE.value:
                 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
                 m.setObjective(
-                    gp.quicksum(
-                        (utilization[link] for link in links)
-                    ),
+                    gp.quicksum((utilization[link] for link in links)),
                     GRB.MINIMIZE,
                 )
             case CalcType.MAX.value:

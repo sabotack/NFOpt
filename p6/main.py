@@ -109,6 +109,7 @@ def process_flows_hour(timestamp, flows, traffic, args, links):
         stats.mean(linkUtil.values()),
     ]
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
