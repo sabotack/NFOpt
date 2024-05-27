@@ -211,7 +211,7 @@ def main():
             ],
         )
 
-    if results[0] is not None:
+    if results is not None:
         results.sort()
 
         dataUtils.writeDataToFile(

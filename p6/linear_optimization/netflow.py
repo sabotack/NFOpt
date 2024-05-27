@@ -19,9 +19,24 @@ options = {
 
 
 def optMC(parserArgs, links, flowTraffic, timestamp):
-    with gp.Env(params=options) as env, gp.Model(env=env) as m:
-        m = gp.Model("netflow", env=env)
+    """
+    Runs multi-commodity flow problem optimization on the data using Gurobi. Writes a file with the new paths and their ratios.
 
+    ### Parameters:
+    ----------
+    #### parserArgs: argparse.Namespace
+    The parser arguments.
+
+    #### links: dict
+    The links in the network, indexed by linkName.
+
+    #### flowTraffic: dict
+    The traffic for each source-destination pair.
+
+    #### timestamp: string
+    The timestamp for the current data.
+    """
+    with gp.Env(params=options) as env, gp.Model("netflow", env=env) as m:
         nodes = []
         edges = []
         for link in links:
