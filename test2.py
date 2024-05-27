@@ -93,8 +93,6 @@ def optMC(parserArgs, links, flowTraffic, flows, timestamp):
             "X;G": 75,
         }
 
-        m.setParam("logFile", "gurobi.log")
-
         nodes = []
         edges = []
         for link in links:

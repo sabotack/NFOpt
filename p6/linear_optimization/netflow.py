@@ -20,7 +20,6 @@ options = {
 def optMC(parserArgs, links, flowTraffic, timestamp):
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         m = gp.Model("netflow", env=env)
-        m.setParam("logFile", "gurobi.log")
 
         nodes = []
         edges = []
