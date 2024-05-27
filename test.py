@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 import pandas as pd
 import gurobipy as gp
+import argparse
 
 from gurobipy import GRB
 from dotenv import load_dotenv
@@ -26,7 +27,7 @@ options = {
 
 
 def runLinearOptimizationModel(
-    parserArgs, links, flows, traffic, timestamp, savelp=False
+    parserArgs, links, flows, traffic, timestamp, savelp=True
 ):
     """
     Runs the linear optimization model to calculate the link utilization and the average link utilization.
@@ -50,7 +51,51 @@ def runLinearOptimizationModel(
     The total link utilization, the average link utilization, and the link utilization for each link.
     """
     logger.info("Started running linear optimization model...")
-    model = parserArgs.model_type
+    model = CalcType.SQUARED.value
+
+    # example of link data
+    # links = {
+    #     "A;B": {"capacity": 100, "listFlows": ["A;G"]},
+    #     "A;C": {"capacity": 80, "listFlows": ["A;G"]},
+    #     "B;D": {"capacity": 140, "listFlows": ["A;G"]},
+    #     "B;E": {"capacity": 120, "listFlows": ["A;G"]},
+    #     "C;F": {"capacity": 70, "listFlows": ["A;G", "X;G"]},
+    #     "D;G": {"capacity": 120, "listFlows": ["A;G"]},
+    #     "E;G": {"capacity": 120, "listFlows": ["A;G"]},
+    #     "F;G": {"capacity": 120, "listFlows": ["A;G", "X;G"]},
+    #     "X;C": {"capacity": 100, "listFlows": ["X;G"]},
+    #     "X;Y": {"capacity": 100, "listFlows": ["X;G"]},
+    #     "Y;F": {"capacity": 100, "listFlows": ["X;G"]},
+    # }
+
+    # flows = {
+    #     "A;G": ['A;B;D;G', 'A;B;E;G', 'A;C;F;G'],
+    #     "X;G": ['X;C;F;G', 'X;Y;F;G'],
+    # }
+
+    # traffic = {
+    #     "A;G": 50,
+    #     "X;G": 75,
+    # }
+
+    links = {
+        "A;B": {"capacity": 100, "listFlows": ["A;G"]},
+        "A;C": {"capacity": 100, "listFlows": ["A;G"]},
+        "B;D": {"capacity": 100, "listFlows": ["A;G"]},
+        "B;E": {"capacity": 100, "listFlows": ["A;G"]},
+        "C;F": {"capacity": 100, "listFlows": ["A;G"]},
+        "D;G": {"capacity": 100, "listFlows": ["A;G"]},
+        "E;G": {"capacity": 100, "listFlows": ["A;G"]},
+        "F;G": {"capacity": 100, "listFlows": ["A;G"]},
+    }
+    flows = {
+        "A;G": ['A;B;D;G', 'A;B;E;G', 'A;C;F;G'],
+    }
+
+    traffic = {
+        "A;G": 100,
+    }
+
 
     with gp.Env(params=options) as env, gp.Model(env=env) as m:
         # Create optimization model based on the input model
@@ -70,7 +115,9 @@ def runLinearOptimizationModel(
             case CalcType.AVERAGE.value:
                 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
                 m.setObjective(
-                    gp.quicksum((utilization[link] for link in links)),
+                    gp.quicksum(
+                        (utilization[link] for link in links)
+                    ),
                     GRB.MINIMIZE,
                 )
             case CalcType.MAX.value:
@@ -78,10 +125,9 @@ def runLinearOptimizationModel(
                 m.setObjective(max_utilization, GRB.MINIMIZE)
             case CalcType.SQUARED.value:
                 utilization = m.addVars(links, vtype=GRB.CONTINUOUS, name="Utilization")
-                m.setObjective(
-                    gp.quicksum((utilization[link] ** 2 for link in links)),
-                    GRB.MINIMIZE,
-                )
+                # make the objective function
+                quadObjective = sum(utilization[link] * utilization[link] for link in links)
+                m.setObjective(quadObjective, GRB.MINIMIZE)
             case _:
                 raise ValueError(f"Invalid model: {model}")
 
@@ -113,7 +159,7 @@ def runLinearOptimizationModel(
                     )
                 case CalcType.SQUARED.value:
                     m.addConstr(
-                        link_flow == utilization[link] * links[link]["capacity"],
+                        link_flow == links[link]["capacity"] * utilization[link],
                         name=f"util_{link}",
                     )
                 case _:
@@ -123,15 +169,9 @@ def runLinearOptimizationModel(
             m.addConstr(path_ratios.sum(sd, "*") == 1, name=f"traffic_split_{sd}")
 
         if savelp:
-            dayOutputDir = (
-                f"{DATA_OUTPUT_DIR}/day{parserArgs.day}/{OPT_MODELS_OUTPUT_DIR}/{model}"
-            )
-            if not os.path.exists(dayOutputDir):
-                os.makedirs(dayOutputDir)
-
             ts = datetime.now().strftime("%Y%m%d")
             time = (timestamp[:3] + timestamp[4:-6]).lower()
-            m.write(f"{dayOutputDir}/{ts}_{time}.lp")
+            m.write(f"{model}_test.lp")
 
         logger.info("Started optimization...")
         m.optimize()
@@ -152,17 +192,26 @@ def runLinearOptimizationModel(
                             path_ratios[sd, flows[sd][pathNum]].x,
                         ]
                     )
-                    logger.debug(
+                    logger.info(
                         f"   Path {pathNum}: {path_ratios[sd, flows[sd][pathNum]].x * 100} %"
                     )
+            #calculate link utilization over every link
+            for link in links:
+                link_flow = sum(
+                    (
+                        path_ratios[sd, flows[sd][pathNum]].x * traffic[sd]
+                        if link in flows[sd][pathNum]
+                        else 0
+                    )
+                    for sd in links[link]["listFlows"]
+                    for pathNum in range(len(flows[sd]))
+                )
+                logger.info(f"Link {link} utilization: {link_flow / links[link]['capacity'] * 100} %")
+    
 
-            dataUtils.writeDataToFile(
-                pd.DataFrame(
-                    ratioData, columns=["timestamp", "flowName", "path", "ratio"]
-                ),
-                "ratioData",
-                parserArgs,
-            )
+            #print to file
+            df = pd.DataFrame(ratioData, columns=["timestamp", "sd", "path", "ratio"])
+            df.to_csv(f"test.csv", index=False)
 
             # Calculate link utilization
             utils = {}
@@ -190,3 +239,6 @@ def runLinearOptimizationModel(
                     logger.error(c.constrName)
         else:
             logger.error("Optimization ended with status %d" % m.status)
+
+runLinearOptimizationModel(None, None, None, None, "Tue 00:00:00", True)
+
