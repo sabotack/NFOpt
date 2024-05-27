@@ -7,9 +7,11 @@ from dotenv import load_dotenv
 from nfopt.utils import log
 from nfopt.utils import data as dataUtils
 
-
 logger = log.setupCustomLogger(__name__)
 load_dotenv("variables.env")
+
+NETFLOW_FLOW_THRESHOLD = float(os.getenv("NETFLOW_FLOW_THRESHOLD"))
+NETFLOW_PATHS_THRESHOLD = float(os.getenv("NETFLOW_PATHS_THRESHOLD"))
 
 options = {
     "WLSACCESSID": os.getenv("WLSACCESSID"),
@@ -52,9 +54,11 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         sorted_flowTraffic = sorted(
             flowTraffic.items(), key=lambda item: item[1], reverse=True
         )
+
         total_demand = sum(flowTraffic.values())
-        percentage = 0.2  # TODO: Add this as a parameter
+        percentage = NETFLOW_FLOW_THRESHOLD
         demand_threshold = total_demand * percentage
+
         cumulative_demand = 0
         significant_flowTraffic = {}
         for flow, value in sorted_flowTraffic:
@@ -129,7 +133,7 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         m.optimize()
 
     # Define the threshold percentage (e.g., 10%)
-    threshold_percentage = 0.001
+    threshold_percentage = 1 - NETFLOW_PATHS_THRESHOLD
 
     if m.Status == gp.GRB.OPTIMAL:
         solution = m.getAttr("X", flowVars)
