@@ -52,8 +52,7 @@ def build_graph(edges):
 
 
 def optMC(parserArgs, links, flowTraffic, flows, timestamp):
-    with gp.Env(params=options) as env, gp.Model(env=env) as m:
-        m = gp.Model("netflow", env=env)
+    with gp.Env(params=options) as env, gp.Model("netflow", env=env) as m:
         # example of link data
         links = {
             "A;B": {"capacity": 100},

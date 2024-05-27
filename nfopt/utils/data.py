@@ -134,8 +134,7 @@ def readLinks():
 
         logger.info("Reading links...")
         dataCapacity = pd.read_csv(
-            f"{DATASET_PATH}/{DATASET_LINKS_NAME}.csv.gz",
-            compression="gzip",
+            f"{DATASET_PATH}/{DATASET_LINKS_NAME}.csv",
             names=["linkStart", "linkEnd", "capacity"],
             skiprows=1,
             engine="pyarrow",
