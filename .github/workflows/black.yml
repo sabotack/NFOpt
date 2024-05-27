@@ -64,4 +64,4 @@ jobs:
 
       - name: Format with black
         run: |
-          poetry run black 'nfopt' --check
+          poetry run black nfopt --check
