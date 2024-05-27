@@ -171,7 +171,7 @@ def runLinearOptimizationModel(
         if savelp:
             ts = datetime.now().strftime("%Y%m%d")
             time = (timestamp[:3] + timestamp[4:-6]).lower()
-            m.write(f"{model}_for_emulio.lp")
+            m.write(f"{model}_test.lp")
 
         logger.info("Started optimization...")
         m.optimize()
@@ -180,10 +180,8 @@ def runLinearOptimizationModel(
         # Output the results
         ratioData = []
         if m.status == GRB.OPTIMAL:
-            print("HEEERES")
             # debug and save optimal path ratios
             for sd in flows:
-                print("here")
                 logger.debug(f"Optimal path ratios for {sd}:")
                 for pathNum in range(len(flows[sd])):
                     ratioData.append(

@@ -185,8 +185,6 @@ def optMC(parserArgs, links, flowTraffic, flows, timestamp):
 
         m.write("multiCommodity.lp")
         m.optimize()
-        m.write("multiCommodity.sol")
-
 
     # Define the threshold percentage (e.g., 10%)
     threshold_percentage = 0
