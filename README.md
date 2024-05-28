@@ -3,7 +3,7 @@
 <div align="center">
   <!-- LOGO MAYBE -->
   <a href="https://github.com/sabotack/NFOpt">
-    <img src="logo.png" alt="Logo" width="250" height="250">
+    <img src="logo.png" alt="Logo" width="150" height="150">
   </a>
   <h3 align="center">NFOpt</h3>
 
