@@ -24,9 +24,15 @@
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
         <li><a href="#installation">Installation</a></li>
+        <li><a href="#data-format">Data Format</a></li>
+        <li>
+          <a href="#usage">Usage</a>
+          <ul>
+            <a href="#optional-arguments">Optional Arguments</a>
+          </ul>
+        </li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
     <li><a href="#contributors">Contributors</a></li>
   </ol>
 </details>
