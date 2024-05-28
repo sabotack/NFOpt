@@ -2,7 +2,9 @@
 <br />
 <div align="center">
   <!-- LOGO MAYBE -->
-
+  <a href="https://github.com/sabotack/NFOpt">
+    <img src="logo.png" alt="Logo" width="150" height="150">
+  </a>
   <h3 align="center">NFOpt</h3>
 
   <p align="center">
@@ -31,7 +33,8 @@
 
 ## About
 NFOpt (Network Flow Optimizer) is a tool designed to optimize network flow by setting up problems as Linear Programming (LP) minimization problems.
-The optimizer can generate a baseline using uniform path splitting ratios for traffic, while available optimization models (average utilization, maximum utilization, and squared utilization) yield optimized ratios.
+The optimizer can generate a baseline using uniform path splitting ratios for traffic, while available optimization models (average utilization, maximum utilization, and squared utilization) yield optimized ratios and utilization.
+Additionally, it can also be used to solve a multi-commodity flow problem over the network resulting in new optimized paths and their respective ratios.
 
 ## Features
 - Generates baseline with uniform path splitting ratios
@@ -46,8 +49,7 @@ The optimizer can generate a baseline using uniform path splitting ratios for tr
 ### Prerequisites
 - [Python 3.x](https://www.python.org/downloads/)
 - [Poetry](https://python-poetry.org/docs/)
-
-> a Gurobi license might be required depending on the size of the network
+- A [Gurobi](https://www.gurobi.com/) license
 
 ### Installation
 1. Clone the repository:
@@ -67,7 +69,7 @@ The optimizer can generate a baseline using uniform path splitting ratios for tr
 Before you can start using the tool, ensure the following steps are completed:
 
 1. **Data Formatting:** Make sure your data is formatted according to the examples provided in the `sample-data` directory.
-2. **Environment Variables:** Set the environment variable for the data directory correctly in the `variables.env` file. You can use the `variables.env-example` file as a reference for the required environment variables and their values. Rename `variables.env-example` to `.env` and update it with the appropriate information.
+2. **Environment Variables:** Set the environment variable for the data directory correctly in the `variables.env` file. <br> You can use the `variables.env-example` file as a reference for the required environment variables and their values. <br> Rename `variables.env-example` to `.env` and update it with the appropriate information.
 
 ### Usage
 - Running baseline calculations:
