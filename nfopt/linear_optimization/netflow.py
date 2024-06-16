@@ -132,62 +132,62 @@ def optMC(parserArgs, links, flowTraffic, timestamp):
         m.write("multiCommodityFlowProblem.lp")
         m.optimize()
 
-    # Define the threshold percentage (e.g., 10%)
-    threshold_percentage = 1 - NETFLOW_PATHS_THRESHOLD
+        # Define the threshold percentage (e.g., 10%)
+        threshold_percentage = 1 - NETFLOW_PATHS_THRESHOLD
 
-    if m.Status == gp.GRB.OPTIMAL:
-        solution = m.getAttr("X", flowVars)
-        flow_values = {
-            (flow, i, j): solution[flow, i, j]
-            for flow in significant_flowTraffic
-            for i, j in edges
-            if solution[flow, i, j] > 0
-        }
+        if m.Status == gp.GRB.OPTIMAL:
+            solution = m.getAttr("X", flowVars)
+            flow_values = {
+                (flow, i, j): solution[flow, i, j]
+                for flow in significant_flowTraffic
+                for i, j in edges
+                if solution[flow, i, j] > 0
+            }
 
-        unique_flows = set()
+            unique_flows = set()
 
-        # New dictionary to hold the threshold values for each flow
-        threshold_values = {
-            flow: flowTraffic[flow] * threshold_percentage for flow in flowTraffic
-        }
+            # New dictionary to hold the threshold values for each flow
+            threshold_values = {
+                flow: flowTraffic[flow] * threshold_percentage for flow in flowTraffic
+            }
 
-        new_flow_values = {}
-        for (flow, start, end), value in flow_values.items():
-            # Get the threshold value for the current flow
-            current_threshold_value = threshold_values[flow]
+            new_flow_values = {}
+            for (flow, start, end), value in flow_values.items():
+                # Get the threshold value for the current flow
+                current_threshold_value = threshold_values[flow]
 
-            # Compare each flow value with its corresponding threshold value
-            if value >= current_threshold_value:
-                # Check if the flow is unique and print it
-                if flow not in unique_flows:
-                    unique_flows.add(flow)
-                new_flow_values[(flow, start, end)] = value
+                # Compare each flow value with its corresponding threshold value
+                if value >= current_threshold_value:
+                    # Check if the flow is unique and print it
+                    if flow not in unique_flows:
+                        unique_flows.add(flow)
+                    new_flow_values[(flow, start, end)] = value
 
-        logger.info(f"Flows before paths cut-off: {len(significant_flowTraffic)}")
-        logger.info(f"Flows after paths cut-off: {len(unique_flows)}")
+            logger.info(f"Flows before paths cut-off: {len(significant_flowTraffic)}")
+            logger.info(f"Flows after paths cut-off: {len(unique_flows)}")
 
-        flow_values = new_flow_values
+            flow_values = new_flow_values
 
-        # Calculate ratios for all flows
-        # calculate time taken to calculate ratios
-        startTime = pd.Timestamp.now()
-        all_paths_with_ratios = calculate_ratios_for_all_flows(
-            flow_values, significant_flowTraffic, timestamp
-        )
-        endTime = pd.Timestamp.now()
+            # Calculate ratios for all flows
+            # calculate time taken to calculate ratios
+            startTime = pd.Timestamp.now()
+            all_paths_with_ratios = calculate_ratios_for_all_flows(
+                flow_values, significant_flowTraffic, timestamp
+            )
+            endTime = pd.Timestamp.now()
 
-        logger.info(f"Time taken to calculate ratios: {endTime - startTime}")
+            logger.info(f"Time taken to calculate ratios: {endTime - startTime}")
 
-        dataUtils.writeDataToFile(
-            pd.DataFrame(
-                all_paths_with_ratios,
-                columns=["timestamp", "flowName", "path", "ratio"],
-            ),
-            "ratioData",
-            parserArgs,
-        )
+            dataUtils.writeDataToFile(
+                pd.DataFrame(
+                    all_paths_with_ratios,
+                    columns=["timestamp", "flowName", "path", "ratio"],
+                ),
+                "ratioData",
+                parserArgs,
+            )
 
-    return
+        return
 
 
 def find_paths(flow_values, flowName, source, target):

@@ -210,8 +210,15 @@ def main():
                 for timestamp in flows
             ],
         )
+    #run in serial
+    """results = []
+    for timestamp in flows:
+        result = process_flows_hour(timestamp, flows[timestamp], traffic[timestamp], args, links.copy())
+        if result is not None:
+            results.append(result)"""
 
-    if results is not None:
+    #check resulst array if none:
+    if results is not None and results[0] is not None:
         results.sort()
 
         dataUtils.writeDataToFile(
