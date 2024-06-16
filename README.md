@@ -60,8 +60,8 @@ Additionally, it can also be used to solve a multi-commodity flow problem over t
 ### Installation
 1. Clone the repository:
     ```
-    git clone https://github.com/sabotack/P6.git
-    cd P6
+    git clone https://github.com/sabotack/NFOpt.git
+    cd NFOpt
     ```
 2. Install the required dependencies:
     ```
@@ -80,13 +80,13 @@ Before you can start using the tool, ensure the following steps are completed:
 ### Usage
 - Running baseline calculations:
     ```
-    poetry run p6 baseline [day]
+    poetry run nfopt baseline [day]
     ```
     > where [day] is an optional argument describing the day of data to use as an integer (default is 1).
 
 - Running optimization models:
     ```
-    poetry run p6 type [day]
+    poetry run nfopt type [day]
     ```
   > where type can be either 'average', 'max' or 'squared'.
 
