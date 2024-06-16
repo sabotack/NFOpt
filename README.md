@@ -88,7 +88,7 @@ Before you can start using the tool, ensure the following steps are completed:
     ```
     poetry run nfopt type [day]
     ```
-  > where type can be either 'average', 'max' or 'squared'.
+  > where type can be either 'average', 'max', 'squared' or 'paths'.
 
 
 #### Optional Arguments
